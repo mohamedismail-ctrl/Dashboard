@@ -563,11 +563,32 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     const curC = at(4, 'H'); const clist = ['All'].concat([...new Set(names)].sort((a, b) => a.localeCompare(b))); if (curC && !clist.includes(curC)) clist.push(curC);
     if (document.activeElement !== con) { con.replaceChildren(...clist.map((n) => new Option(n === 'All' ? 'All contractors' : n, n))); con.value = curC || 'All'; }
   }
-  /* Outside claude.ai the page reads the sheet through the Apps Script web app (FleetDashboardAPI.gs).
-     Paste its /exec URL below once, or open the page with ?api=<web app URL>. */
-  const WEBAPP_URL = (new URLSearchParams(location.search).get('api') || 'PASTE_WEB_APP_URL_HERE').trim();
-  const hasWeb = () => /^https:\/\/script\.google(usercontent)?\.com\//.test(WEBAPP_URL);
+  /* Outside claude.ai the page reads the Dashboard tab from ONE of these links (set once):
+       • "Publish to web" CSV link of the Dashboard tab  (read-only, easiest)
+       • Apps Script web app URL from FleetDashboardAPI.gs   (read + filters)
+     Put it in EMBEDDED_LINK below, or open the page with ?api=<link>, or paste it in the box the page shows. */
+  const EMBEDDED_LINK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSt3kPOxS6CBA78DanFw0HBiMny3Gn5b9EJ6o4ZaIVwnr3iVFGNUK7pGnp68T2PQJ74prajwOqlwnCF/pub?output=csv';
+  const lsGet = () => { try { return localStorage.getItem('fleetDashLink') || ''; } catch (e) { return ''; } };
+  const WEBAPP_URL = (new URLSearchParams(location.search).get('api') || (/^https:/.test(EMBEDDED_LINK) ? EMBEDDED_LINK : '') || lsGet()).trim();
+  const isCsv = () => /docs\.google\.com\/spreadsheets\/d\/e\/.+\/pub/.test(WEBAPP_URL) || /output=csv/.test(WEBAPP_URL);
+  const hasWeb = () => /^https:\/\/script\.google(usercontent)?\.com\//.test(WEBAPP_URL) || isCsv();
+  function parseCSV(t) {
+    const out = []; let row = [], f = '', q = false;
+    for (let i = 0; i < t.length; i++) { const c = t[i];
+      if (q) { if (c === '"') { if (t[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+      else if (c === '"') q = true; else if (c === ',') { row.push(f); f = ''; } else if (c === '\n') { row.push(f); out.push(row); row = []; f = ''; } else if (c !== '\r') f += c; }
+    if (f !== '' || row.length) { row.push(f); out.push(row); }
+    return out;
+  }
   async function webGet(params) {
+    if (isCsv()) {
+      if (params && params.set) throw { message: 'filters are read-only with a Publish-to-web link; change them in the yellow cells of the Dashboard tab' };
+      const u = new URL(WEBAPP_URL.includes('output=') ? WEBAPP_URL : WEBAPP_URL + (WEBAPP_URL.includes('?') ? '&' : '?') + 'output=csv'); u.searchParams.set('t', Date.now());
+      let r; try { r = await fetch(u.toString()); } catch (e) { throw { message: 'the published link could not be reached' }; }
+      if (!r.ok) throw { message: 'the published link answered ' + r.status + ' (check that the Dashboard tab is still published)' };
+      const txt = await r.text(); if (/^\s*</.test(txt)) throw { message: 'the link did not return CSV — publish the Dashboard tab as "Comma-separated values (.csv)"' };
+      return { values: parseCSV(txt) };
+    }
     const u = new URL(WEBAPP_URL); Object.entries(params || {}).forEach(([k, v]) => u.searchParams.set(k, v)); u.searchParams.set('t', Date.now());
     let r; try { r = await fetch(u.toString(), { redirect: 'follow' }); } catch (e) { throw { message: 'the web app could not be reached (check the URL and that access is set to "Anyone")' }; }
     if (!r.ok) throw { message: 'the web app answered ' + r.status };
@@ -631,6 +652,16 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     showSec(Math.min(active, shown.length - 1), true);
   }
   const io = { observe() {} };
+  function askLink() {
+    const b = $('#fx-banner'); b.replaceChildren();
+    const d = el('div', 'fx-banner');
+    d.appendChild(el('div', null, 'Connect this page to the Dashboard tab: in Google Sheets open File → Share → Publish to web, choose the "Dashboard" tab and "Comma-separated values (.csv)", press Publish, and paste the link here.'));
+    const row = el('div'); row.style.cssText = 'display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem';
+    const inp = el('input'); inp.type = 'url'; inp.placeholder = 'https://docs.google.com/spreadsheets/d/e/…/pub?gid=…&single=true&output=csv'; inp.style.cssText = 'flex:1 1 22rem;min-width:0;font:inherit;padding:.4rem .55rem;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);background:var(--color-bg);color:var(--color-fg)';
+    const go = el('button', 'fx-btn', 'Connect'); go.type = 'button';
+    go.addEventListener('click', () => { const v = inp.value.trim(); if (!/^https:\/\//.test(v)) { inp.focus(); return; } try { localStorage.setItem('fleetDashLink', v); } catch (e) {} const u = new URL(location.href); u.searchParams.set('api', v); location.href = u.toString(); });
+    row.append(inp, go); d.appendChild(row); b.appendChild(d);
+  }
   async function load(manual) {
     try { const res = mcp ? await mcp.callTool(SERVER, 'get_values', READ, { cache: { refresh: true } }) : { payload: await webGet() }; accept(res); }
     catch (e) { const btn = ['not_in_manifest', 'approval_required', 'consent_required'].includes(e.code) ? { label: 'Allow and load', fn: () => load(true) } : (e.retryable ? { label: 'Try again', fn: () => load(true) } : null); banner(explain(e), btn); $('#fx-dot').style.background = 'var(--color-bad)'; if (!rows.length) $('#fx-main').replaceChildren(); }
@@ -639,8 +670,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     wireControls();
     mcp = window.claude && window.claude.use ? await window.claude.use('mcp') : null;
     if (!mcp) {
-      if (!hasWeb()) { banner('This page needs its data bridge: deploy FleetDashboardAPI.gs as a web app (access: Anyone) and paste its URL into WEBAPP_URL in this file, or open the page with ?api=<web app URL>.'); $('#fx-upd').textContent = 'Not connected'; $('#fx-main').replaceChildren(); return; }
+      if (!hasWeb()) { askLink(); $('#fx-upd').textContent = 'Not connected'; $('#fx-main').replaceChildren(); return; }
       $('#fx-upd').textContent = 'Connecting to the Dashboard tab…';
+      if (isCsv()) { ['#c-day', '#c-month', '#c-con', '#c-star', '#c-start', '#c-end'].forEach((s) => { $(s).disabled = true; }); $('#fx-save').textContent = 'Filters follow the yellow cells of the Dashboard tab (change them in the sheet; this page updates within a few minutes).'; }
       await load(true);
       setInterval(() => { if (!busy && document.visibilityState === 'visible') load(false); }, 60000);
       return;
