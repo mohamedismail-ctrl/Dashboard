@@ -563,10 +563,23 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     const curC = at(4, 'H'); const clist = ['All'].concat([...new Set(names)].sort((a, b) => a.localeCompare(b))); if (curC && !clist.includes(curC)) clist.push(curC);
     if (document.activeElement !== con) { con.replaceChildren(...clist.map((n) => new Option(n === 'All' ? 'All contractors' : n, n))); con.value = curC || 'All'; }
   }
+  /* Outside claude.ai the page reads the sheet through the Apps Script web app (FleetDashboardAPI.gs).
+     Paste its /exec URL below once, or open the page with ?api=<web app URL>. */
+  const WEBAPP_URL = (new URLSearchParams(location.search).get('api') || 'PASTE_WEB_APP_URL_HERE').trim();
+  const hasWeb = () => /^https:\/\/script\.google(usercontent)?\.com\//.test(WEBAPP_URL);
+  async function webGet(params) {
+    const u = new URL(WEBAPP_URL); Object.entries(params || {}).forEach(([k, v]) => u.searchParams.set(k, v)); u.searchParams.set('t', Date.now());
+    let r; try { r = await fetch(u.toString(), { redirect: 'follow' }); } catch (e) { throw { message: 'the web app could not be reached (check the URL and that access is set to "Anyone")' }; }
+    if (!r.ok) throw { message: 'the web app answered ' + r.status };
+    let j; try { j = await r.json(); } catch (e) { throw { message: 'the web app did not return data (redeploy it with access "Anyone")' }; }
+    if (j && j.error) throw { message: j.error };
+    return j;
+  }
   async function writeCell(key, value, label) {
-    if (!mcp || busy) return; busy = true;
+    if ((!mcp && !hasWeb()) || busy) return; busy = true;
     const save = $('#fx-save'); save.classList.remove('err'); save.textContent = 'Saving ' + label + ' to the Dashboard tab…';
     try {
+      if (!mcp) { accept({ payload: await webGet({ set: CELLS[key], value }) }); save.textContent = label + ' updated.'; return; }
       await mcp.callTool(SERVER, 'update_values', { spreadsheetId: SID, range: 'Dashboard!' + CELLS[key], values: [[value]] }, { cache: false });
       save.textContent = label + ' saved. Recalculating…';
       await new Promise((r) => setTimeout(r, 900));
@@ -619,13 +632,19 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   }
   const io = { observe() {} };
   async function load(manual) {
-    try { const res = await mcp.callTool(SERVER, 'get_values', READ, { cache: { refresh: true } }); accept(res); }
+    try { const res = mcp ? await mcp.callTool(SERVER, 'get_values', READ, { cache: { refresh: true } }) : { payload: await webGet() }; accept(res); }
     catch (e) { const btn = ['not_in_manifest', 'approval_required', 'consent_required'].includes(e.code) ? { label: 'Allow and load', fn: () => load(true) } : (e.retryable ? { label: 'Try again', fn: () => load(true) } : null); banner(explain(e), btn); $('#fx-dot').style.background = 'var(--color-bad)'; if (!rows.length) $('#fx-main').replaceChildren(); }
   }
   (async () => {
     wireControls();
     mcp = window.claude && window.claude.use ? await window.claude.use('mcp') : null;
-    if (!mcp) { banner('Open this dashboard on claude.ai with the Google Sheets connector to see live data.'); $('#fx-upd').textContent = 'Not connected'; $('#fx-main').replaceChildren(); return; }
+    if (!mcp) {
+      if (!hasWeb()) { banner('This page needs its data bridge: deploy FleetDashboardAPI.gs as a web app (access: Anyone) and paste its URL into WEBAPP_URL in this file, or open the page with ?api=<web app URL>.'); $('#fx-upd').textContent = 'Not connected'; $('#fx-main').replaceChildren(); return; }
+      $('#fx-upd').textContent = 'Connecting to the Dashboard tab…';
+      await load(true);
+      setInterval(() => { if (!busy && document.visibilityState === 'visible') load(false); }, 60000);
+      return;
+    }
     mcp.watchTool(SERVER, 'get_values', READ, (ev) => {
       if (ev.type === 'data') { if (!busy) accept(ev.result); return; }
       const e = ev.error || {};
@@ -634,7 +653,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       banner(explain(e), btn); $('#fx-dot').style.background = 'var(--color-bad)';
     }, { refetchInterval: 60000, cache: { staleTime: 30000 } });
   })();
-  $('#fx-refresh').addEventListener('click', () => { if (mcp) load(true); });
+  $('#fx-refresh').addEventListener('click', () => { if (mcp || hasWeb()) load(true); });
 })();
 
 </script>
