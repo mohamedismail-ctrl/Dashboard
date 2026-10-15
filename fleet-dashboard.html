@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fleet Dashboard</title>
+<style>
+:root{color-scheme:light;--font-anthropic-sans:"Inter","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;--font-anthropic-serif:Georgia,"Times New Roman",serif;
+--color-fg:#202124;--color-fg-muted:#5f6368;--color-bg:#e8eaed;--color-panel:#f8f9fa;--color-border-line:#d3d6da;--color-ok:#18794e;--color-warn:#a15c00;--color-bad:#c4302b;--accent:#5f6368;--head:#3c4043;--thead:#e1e3e6;--card:#eef0f2;
+--cds-font-size-caption:.75rem;--cds-font-size-body:.875rem;--cds-font-size-heading:1rem;--cds-font-size-title:1.7rem;--cds-font-weight-medium:600;
+--cds-gap-xs:.25rem;--cds-gap-sm:.5rem;--cds-gap-md:1rem;--cds-gap-lg:1.5rem;--cds-pad-xs:.25rem;--cds-pad-sm:.5rem;--cds-pad-md:.75rem;--cds-pad-lg:1rem;--cds-radius:8px;--cds-dur-slow:.3s;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--head:#5f6368;--thead:#35373a;--card:#2c2d30;--color-fg:#e8eaed;--color-fg-muted:#9aa0a6;--color-bg:#1c1c1e;--color-panel:#262729;--color-border-line:#3c3d40;--color-ok:#4cc38a;--color-warn:#e5a54a;--color-bad:#f0716b;--accent:#7fb1ee}}
+:root[data-theme="dark"]{color-scheme:dark;--head:#5f6368;--thead:#35373a;--card:#2c2d30;--color-fg:#e8eaed;--color-fg-muted:#9aa0a6;--color-bg:#1c1c1e;--color-panel:#262729;--color-border-line:#3c3d40;--color-ok:#4cc38a;--color-warn:#e5a54a;--color-bad:#f0716b;--accent:#7fb1ee}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--color-bg);color:var(--color-fg)}
+.wrap{max-width:1500px;margin-inline:auto;padding:clamp(12px,2.5vw,32px)}
+.fx-form{display:flex;flex-wrap:wrap;gap:var(--cds-gap-sm);align-items:flex-end;background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-md);margin-bottom:var(--cds-gap-md);position:sticky;top:env(safe-area-inset-top,0px);z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.07)}
+[hidden]{display:none!important}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--color-bg)}
+.fx-form label{display:flex;flex-direction:column;gap:.2rem;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.fx-form input,.fx-form select{font:inherit;font-size:var(--cds-font-size-body);color:var(--color-fg);background:var(--color-bg);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:.35rem .5rem;min-width:9rem}
+.fx-form .grp{display:flex;gap:var(--cds-gap-sm);flex-wrap:wrap;padding-right:var(--cds-gap-sm);border-right:1px solid var(--color-border-line)}
+.fx-form .grp:last-of-type{border-right:0}
+.fx-save{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);min-height:1.2em;flex-basis:100%}
+.fx-save.err{color:var(--color-bad)}
+.fx-banner{background:var(--color-panel);border:1px solid var(--color-border-line);border-left:3px solid var(--color-bad);border-radius:var(--cds-radius);padding:var(--cds-pad-md);margin-bottom:var(--cds-gap-md);font-size:var(--cds-font-size-body)}
+.fx-banner button{margin-top:.5rem}
+.skel{height:14rem;border-radius:var(--cds-radius);background:linear-gradient(90deg,var(--color-panel),var(--color-border-line),var(--color-panel));background-size:200% 100%;animation:sk 1.4s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+
+
+.fx{font-family:var(--font-anthropic-sans);color:var(--color-fg);font-variant-numeric:tabular-nums}
+.fx-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:var(--cds-gap-md);padding-bottom:var(--cds-gap-md);border-bottom:1px solid var(--color-border-line);margin-bottom:var(--cds-gap-md)}
+.fx-title{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);margin:0;line-height:1.15}
+.fx-sub{margin:.35rem 0 0;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);max-width:90ch}
+.fx-live{display:flex;align-items:center;gap:var(--cds-gap-sm);font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.fx-dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--color-ok)}
+.fx-btn{font:inherit;font-size:var(--cds-font-size-caption);background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:.3rem .65rem;color:var(--color-fg);cursor:pointer}
+.fx :focus-visible{outline:2px solid var(--color-fg);outline-offset:2px}
+.fx-ctl{display:flex;flex-wrap:wrap;gap:var(--cds-gap-sm);margin-bottom:var(--cds-gap-md)}
+.fx-chip{display:flex;flex-direction:column;background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:.35rem .7rem;min-width:8rem}
+.fx-chip .k{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.fx-chip .v{font-weight:600}
+.fx-layout{display:grid;grid-template-columns:15rem minmax(0,1fr);gap:var(--cds-gap-lg);align-items:start}
+@media (max-width:860px){.fx-layout{grid-template-columns:1fr}.fx-nav{position:static!important;max-height:none!important}}
+.fx-nav{position:sticky;top:calc(var(--form-h,0px) + env(safe-area-inset-top,0px) + .75rem);max-height:calc(100vh - var(--form-h,0px) - 1.5rem);overflow:auto;background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-sm)}
+.fx-nav a{display:block;padding:.45rem .55rem;border-radius:calc(var(--cds-radius) - 2px);color:var(--color-fg);text-decoration:none;font-size:var(--cds-font-size-body);line-height:1.25}
+.fx-nav a small{display:block;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.fx-nav a:hover{background:color-mix(in srgb,var(--color-fg) 6%,transparent)}
+.fx-nav a.on{background:color-mix(in srgb,var(--color-fg) 10%,transparent);font-weight:600}
+.fx-sec{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg);margin-bottom:var(--cds-gap-lg);scroll-margin-top:.75rem}
+.fx-sec>h2{margin:0 0 .15rem;font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium)}
+.fx-sec>.meta{margin:0 0 var(--cds-gap-md);color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.fx-h{margin:var(--cds-gap-md) 0 var(--cds-gap-sm);font-size:var(--cds-font-size-body);font-weight:600}
+.fx-note{margin:0 0 var(--cds-gap-md);padding:.5rem .75rem;border-left:3px solid var(--color-border-line);color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);line-height:1.5}
+.fx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr));gap:var(--cds-gap-sm);margin-bottom:var(--cds-gap-md)}
+.fx-kpi{border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-md)}
+.fx-kpi .l{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);min-height:2.4em}
+.fx-kpi .v{font-family:var(--font-anthropic-serif);font-size:var(--cds-font-size-title);line-height:1.1}
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:var(--cds-gap-md);margin-bottom:var(--cds-gap-md);align-items:start}
+.fx-card{border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-md);min-width:0}
+.fx-card.wide{grid-column:1/-1}
+.fx-card h3{margin:0 0 .5rem;font-size:var(--cds-font-size-body);font-weight:600}
+.fx-tools{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.4rem}
+.fx-tools input{font:inherit;font-size:var(--cds-font-size-caption);color:var(--color-fg);background:var(--color-bg);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:.25rem .5rem;width:min(100%,14rem)}
+.fx-tools span{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.fx-tw{max-height:28rem;overflow:auto}
+.fx table{border-collapse:collapse;width:100%;font-size:var(--cds-font-size-caption)}
+.fx th{position:sticky;top:0;background:var(--color-panel);text-align:left;font-weight:600;color:var(--color-fg-muted);border-bottom:1px solid var(--color-border-line);padding:.35rem .5rem;white-space:nowrap;z-index:1}
+.fx td{padding:.3rem .5rem;border-bottom:1px solid var(--color-border-line);vertical-align:top}
+.fx td.n,.fx th.n{text-align:right;white-space:nowrap}
+.fx tr.tot td{font-weight:700;background:color-mix(in srgb,var(--color-fg) 5%,transparent)}
+.fx dl.fx-kv{display:grid;grid-template-columns:minmax(0,1fr) auto;margin:0;font-size:var(--cds-font-size-caption)}
+.fx dl.fx-kv dt,.fx dl.fx-kv dd{padding:.35rem .25rem;border-bottom:1px solid var(--color-border-line);margin:0}
+.fx dl.fx-kv dt{color:var(--color-fg-muted)}
+.fx dl.fx-kv dd{text-align:right;font-weight:600;overflow-wrap:anywhere}
+.fx dl.fx-kv{grid-template-columns:minmax(8rem,auto) minmax(0,1fr)!important;column-gap:1rem}
+.fx-sec>h2{background:var(--head);color:#fff;padding:.55rem .8rem;border-radius:6px;margin:0 0 .5rem}
+.fx th{background:var(--thead)!important;color:var(--color-fg)!important}
+.fx-kpi{background:var(--card)}
+.fx-nav a.on{background:var(--head)!important;color:#fff}
+.fx-nav a.on small{color:#dadce0}
+.fx-form{border-top:3px solid var(--head)}
+.fx-chip{background:var(--card)}
+.fx-svg{width:100%;height:auto;display:block}
+.fx-svg .fx-t{font-size:10px;fill:var(--color-fg-muted)}
+.fx-svg .fx-v{font-size:10px;font-weight:700;fill:var(--color-fg)}
+.fx-svg .fx-in{font-weight:700;fill:#fff}
+.fx-svg .fx-grid{stroke:var(--color-border-line);stroke-width:1}
+.fx-svg .fx-axis{stroke:var(--color-fg-muted);stroke-width:1}
+.fx-legend{display:flex;flex-wrap:wrap;gap:.35rem 1rem;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin:-.2rem 0 .4rem}
+.fx-legend span{display:inline-flex;align-items:center;gap:.35rem}
+.fx-legend i{display:inline-block;width:.9rem;height:.6rem;border-radius:2px}
+.fx-pie{display:flex;flex-wrap:wrap;align-items:center;gap:1.25rem}
+.fx-piesvg{width:min(100%,240px)!important;flex:0 0 auto}
+.fx-plegend{list-style:none;margin:0;padding:0;flex:1 1 11rem;min-width:0}
+.fx-plegend li{display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--color-border-line);font-size:var(--cds-font-size-body)}
+.fx-plegend li span{font-weight:600}
+.fx-plegend i{width:.7rem;height:.7rem;border-radius:50%;flex:0 0 auto}
+.fx-plegend b{margin-left:auto;font-weight:600;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.fx-para{margin:.2rem 0 0;font-size:var(--cds-font-size-body);line-height:1.6}
+.fx dl.fx-kv .tot{color:var(--color-fg);font-weight:700}
+.fx .ok{color:var(--color-ok)} .fx .warn{color:var(--color-warn)} .fx .bad{color:var(--color-bad)}
+.fx-fail{display:flex;align-items:center;justify-content:center;gap:.4rem;min-height:12rem;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.fx-fail::before{content:"";width:.375rem;height:.375rem;border-radius:50%;background:var(--color-bad)}
+.fx-empty{min-height:20rem}
+[data-dash-source-state=refreshing]{opacity:.55;transition:opacity var(--cds-dur-slow)}
+</style>
+</head>
+<body>
+
+<div class="wrap fx" id="fx">
+  <div class="fx-top">
+    <div>
+      <h1 class="fx-title" id="fx-title">Fleet dashboard</h1>
+      <p class="fx-sub" id="fx-sub"></p>
+    </div>
+    <div class="fx-live"><span class="fx-dot" id="fx-dot"></span><span id="fx-upd">Connecting to Google Sheets…</span><button class="fx-btn" id="fx-refresh" type="button">Refresh now</button></div>
+  </div>
+  <div id="fx-banner"></div>
+  <div class="fx-form" id="fx-form" hidden>
+    <div class="grp">
+      <label>Selected Day<input type="date" id="c-day" min="2000-01-01" max="2099-12-31"></label>
+      <label>Selected Month<select id="c-month"></select></label>
+      <label>Contractor<select id="c-con"></select></label>
+    </div>
+    <div class="grp">
+      <label>Star Name / Star ID<input type="text" id="c-star" placeholder="Name or ID, then Enter"></label>
+      <label>Start Date<input type="date" id="c-start" min="2000-01-01" max="2099-12-31"></label>
+      <label>End Date<input type="date" id="c-end" min="2000-01-01" max="2099-12-31"></label>
+    </div>
+    <div class="fx-save" id="fx-save">Changing a control writes it to the yellow cell on the Dashboard tab; the sheet recalculates and this page reloads.</div>
+  </div>
+  <div class="fx-ctl" id="fx-ctl" hidden></div>
+  <div class="fx-layout">
+    <nav class="fx-nav" id="fx-nav" aria-label="Sections"></nav>
+    <main id="fx-main"><div class="skel"></div></main>
+  </div>
+</div>
+
+<script>
+(function () {
+  const L = 'ABCDEFGHIJKLMN'.split('');
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const enc = (s) => String(s).replace(/%/g, '%25').replace(/&/g, '%26').replace(/=/g, '%3D');
+  const mark = (e) => e;
+  const cells = (row) => L.map((c) => (row[c] || '').trim());
+  const filled = (cs) => cs.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+  const isNum = (s) => { s = String(s).trim(); return /^[-+]?[\d,]*\.?\d+%?$/.test(s) || /^\d{1,2}-[A-Za-z]{3}(-\d{4})?$/.test(s) || /^[A-Za-z]{3} \d{1,2}-[A-Za-z]{3}$/.test(s) || s === '—' || /^not set$/i.test(s) || /^#(N\/A|REF!|ERROR!|VALUE!)/.test(s); };
+  const SEC = /^(overview|active stars details|controls|\d+\.\s)/i;
+  const statusCls = (v) => { const s = v.toLowerCase(); if (/^(working \(new\)|done|yes)$/.test(s)) return 'ok'; if (/^(left|pending|no|missing)$/.test(s)) return 'bad'; if (/^(replacement \(working\)|pending contractor|pending on sorting|pending audit|pending fleet|pending star)$/.test(s)) return 'warn'; return ''; };
+  const totalRow = (t) => /^(total|month total|daily average|all hubs)/i.test(t);
+
+  /* ---------- structure detection ---------- */
+  function sections(rows) {
+    const out = []; let cur = null;
+    rows.forEach((row) => {
+      const cs = cells(row), f = filled(cs);
+      if (f.length === 1 && f[0] === 0 && SEC.test(cs[0]) && row.r > 2) { cur = { r: row.r, title: cs[0], rows: [] }; out.push(cur); return; }
+      if (cur) cur.rows.push(row);
+    });
+    return out;
+  }
+  const dashTitle = (rows, k) => { const cs = cells(rows[k]), f = filled(cs); return f.length > 0 && f.every((i) => !isNum(cs[i]) && cs[i].includes('—')); };
+  function isHeaderAt(rows, k) {
+    const cs = cells(rows[k]), f = filled(cs);
+    if (f.length < 2 || f.some((i) => isNum(cs[i])) || dashTitle(rows, k)) return false;
+    const nx = rows[k + 1]; if (!nx) return false;
+    const n = cells(nx); return filled(n).some((i) => isNum(n[i]));
+  }
+  function isTitleAt(rows, k) {
+    const cs = cells(rows[k]), f = filled(cs);
+    if (!f.length || f.some((i) => isNum(cs[i]))) return false;
+    if (f.some((i, j) => j && i - f[j - 1] < 2)) return false;
+    return dashTitle(rows, k) || (!!rows[k + 1] && isHeaderAt(rows, k + 1));
+  }
+  function kpiAt(rows, k) {
+    const a = rows[k], b = rows[k + 1]; if (!b) return null;
+    const ca = cells(a), cb = cells(b), fa = filled(ca), fb = filled(cb);
+    if (fa.length < 3 || fa.some((i) => isNum(ca[i]))) return null;
+    if (fa.some((i, j) => j && i - fa[j - 1] < 2)) return null;
+    if (fa.join() !== fb.join()) return null;
+    if (fb.filter((i) => isNum(cb[i])).length < fb.length / 2) return null;
+    return { type: 'kpis', items: fa.map((i) => ({ label: ca[i], value: cb[i], r: b.r, col: L[i] })) };
+  }
+  function parseSection(sec) {
+    const items = []; const rows = sec.rows; let block = [];
+    const flush = () => { if (block.length) { parseBlock(block).forEach((x) => items.push(x)); block = []; } };
+    for (let k = 0; k < rows.length; k++) {
+      const cs = cells(rows[k]), f = filled(cs);
+      if (!f.length) { flush(); items.push({ type: 'gap' }); continue; }
+      if (f.length === 1 && !isNum(cs[f[0]]) && !(rows[k + 1] && filled(cells(rows[k + 1])).length && isHeaderAt(rows, k + 1) && false)) {
+        const next = rows[k + 1];
+        const single = !next || !filled(cells(next)).length || filled(cells(next)).length >= 1;
+        if (single && (cs[f[0]].length > 90 || f[0] === 0 || f[0] > 0)) { flush(); items.push({ type: cs[f[0]].length > 90 ? 'note' : 'heading', text: cs[f[0]], r: rows[k].r, col: L[f[0]] }); continue; }
+      }
+      const kp = kpiAt(rows, k);
+      if (kp) { flush(); items.push(kp); k++; continue; }
+      block.push(rows[k]);
+    }
+    flush();
+    return items;
+  }
+  function parseBlock(rows) {
+    const segs = []; let cur = null, title = null;
+    for (let k = 0; k < rows.length; k++) {
+      if (isTitleAt(rows, k)) { title = rows[k]; continue; }
+      if (isHeaderAt(rows, k)) { cur = { title, header: rows[k], rows: [] }; segs.push(cur); title = null; continue; }
+      if (!cur || cur.header === undefined) { cur = { title: null, header: null, rows: [] }; segs.push(cur); }
+      cur.rows.push(rows[k]);
+    }
+    const out = [];
+    segs.forEach((s) => splitCols(s).forEach((t) => out.push(t)));
+    return out;
+  }
+  function groupKind(cols, header, rows) {
+    const all = (header ? [header] : []).concat(rows);
+    if (cols.length === 1) return all.length >= 1 && !isNum(cells(all[0])[cols[0]]) ? 'text' : 'plain';
+    if (cols.length !== 2) return 'table';
+    const [a, b] = cols;
+    if (all.some((r) => cells(r)[a] && isNum(cells(r)[a]))) return 'table';
+    if (header) {
+      const h = cells(header);
+      if (/^(field|metric)$/i.test(h[a]) && /^value$/i.test(h[b] || '')) return 'kv';
+      const vals = rows.map((r) => cells(r)[b]).filter(Boolean);
+      if (vals.length && vals.every((v) => isNum(v))) return 'table';
+      return 'kv';
+    }
+    return 'kv';
+  }
+  function splitCols(seg) {
+    const all = (seg.header ? [seg.header] : []).concat(seg.rows);
+    const used = L.map((c, i) => all.some((r) => cells(r)[i]));
+    const hidden = L.map((c, i) => !!seg.header && /^chart date$/i.test(cells(seg.header)[i]));
+    const starts = new Set(); if (seg.title) filled(cells(seg.title)).forEach((i) => starts.add(i));
+    const groups = []; let g = null;
+    for (let i = 0; i < L.length; i++) {
+      if (!used[i] || hidden[i]) { g = null; continue; }
+      if (!g || starts.has(i)) { g = []; groups.push(g); }
+      g.push(i);
+    }
+    return groups.map((cols) => {
+      const t = seg.title ? cols.map((i) => cells(seg.title)[i]).filter(Boolean).join(' ') : '';
+      const rows = seg.rows.filter((r) => cols.some((i) => cells(r)[i]));
+      const base = { title: t, titleR: seg.title && seg.title.r, titleCol: seg.title && L[cols.find((i) => cells(seg.title)[i]) ?? cols[0]], cols, header: seg.header, rows };
+      const kind = groupKind(cols, seg.header, rows);
+      if (kind === 'kv') {
+        const pairs = [];
+        const h = seg.header ? cells(seg.header) : null;
+        const fieldHdr = h && /^(field|metric)$/i.test(h[cols[0]]) && /^value$/i.test(h[cols[1]] || '');
+        if (h && !fieldHdr && h[cols[0]]) pairs.push([h[cols[0]], cols[1] != null ? h[cols[1]] : '']);
+        rows.forEach((r) => { const c = cells(r); const k = c[cols[0]], v = cols[1] != null ? c[cols[1]] : ''; if (/^(field|metric)$/i.test(k) && /^value$/i.test(v)) return; if (k || v) pairs.push([k, v]); });
+        return Object.assign(base, { type: 'kv', pairs });
+      }
+      if (kind === 'text') {
+        const lines = (seg.header ? [seg.header] : []).concat(rows).map((r) => cells(r)[cols[0]]).filter(Boolean);
+        return Object.assign(base, { type: 'text', head: lines[0] || '', lines: lines.slice(1) });
+      }
+      return Object.assign(base, { type: seg.header ? 'table' : 'plain' });
+    }).filter((t) => t.rows.length || t.header);
+  }
+
+  /* ---------- rendering ---------- */
+  function renderTable(t, prevTables) {
+    const card = el('div', 'fx-card' + (t.cols.length > 4 ? ' wide' : ''));
+    if (t.title) card.appendChild(mark(el('h3', null, t.title), t.titleR, t.titleCol));
+    const tools = el('div', 'fx-tools'); const count = el('span');
+    let search = null;
+    if (t.rows.length > 10) { search = el('input'); search.type = 'text'; search.placeholder = 'Search this table'; search.setAttribute('aria-label', 'Search ' + (t.title || 'table')); tools.appendChild(search); }
+    tools.appendChild(count); card.appendChild(tools);
+    const tw = el('div', 'fx-tw'); const table = el('table'); 
+    const thead = el('thead'), trh = el('tr');
+    const numCol = t.cols.map((i) => t.rows.filter((r) => !totalRow(cells(r)[t.cols[0]])).some((r) => cells(r)[i]) && t.rows.filter((r) => cells(r)[i]).every((r) => isNum(cells(r)[i])));
+    t.cols.forEach((i, j) => { const th = el('th', numCol[j] ? 'n' : '', t.header ? cells(t.header)[i] : ''); th.dataset.field = L[i]; trh.appendChild(th); });
+    thead.appendChild(trh); if (t.header) table.appendChild(thead);
+    const tb = el('tbody');
+    const addRow = (r) => {
+      const tr = el('tr'); tr.dataset.key = String(r.r); const cs = cells(r);
+      if (totalRow(cs[t.cols[0]])) tr.className = 'tot';
+      t.cols.forEach((i, j) => { const td = el('td', numCol[j] ? 'n' : '', cs[i]); const sc = statusCls(cs[i]); if (sc) td.classList.add(sc); tr.appendChild(td); });
+      tb.appendChild(tr);
+    };
+    t.rows.forEach(addRow);
+    (t.footer || []).forEach(addRow);
+    table.appendChild(tb); tw.appendChild(table); card.appendChild(tw);
+    const dataRows = () => [...tb.rows].filter((tr) => !tr.hidden && !tr.classList.contains('tot')).length;
+    const upd = () => { count.textContent = dataRows() + ' row' + (dataRows() === 1 ? '' : 's'); };
+    if (search) search.addEventListener('input', () => { const q = search.value.trim().toLowerCase(); [...tb.rows].forEach((tr) => { tr.hidden = !!q && !tr.classList.contains('tot') && !tr.textContent.toLowerCase().includes(q); }); upd(); });
+    upd();
+    return card;
+  }
+  function renderPlain(t) {
+    const twoCol = t.rows.every((r) => filled(cells(r).filter((v, i) => t.cols.includes(i))).length <= 2);
+    if (twoCol && t.cols.length <= 3) {
+      const card = el('div', 'fx-card');
+      if (t.title) card.appendChild(mark(el('h3', null, t.title), t.titleR, t.titleCol));
+      const dl = el('dl', 'fx-kv');
+      t.rows.forEach((r) => {
+        const cs = cells(r); const f = t.cols.filter((i) => cs[i]);
+        const k = f[0], v = f[1];
+        const dt = mark(el('dt', null, cs[k]), r.r, L[k]);
+        const dd = v != null ? mark(el('dd', null, cs[v]), r.r, L[v]) : el('dd', null, '');
+        if (v != null) { const sc = statusCls(cs[v]); if (sc) dd.classList.add(sc); }
+        if (/^[A-Z0-9 %()\/÷−\-&.]+$/.test(cs[k]) && cs[k].length > 3) { dt.classList.add('tot'); dd.classList.add('tot'); }
+        dl.append(dt, dd);
+      });
+      card.appendChild(dl); return card;
+    }
+    return renderTable(t);
+  }
+  /* ---------- charts drawn from the Dashboard tab's own table values ---------- */
+  const NS = 'http://www.w3.org/2000/svg';
+  const sv = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); Object.entries(attrs || {}).forEach(([k, v]) => e.setAttribute(k, v)); if (text != null) e.textContent = text; return e; };
+  const nval = (s) => { const v = parseFloat(String(s || '').replace(/,/g, '').replace('%', '')); return isNaN(v) ? null : v; };
+  const dayLbl = (s) => { const m = String(s).match(/(\d{1,2}-[A-Za-z]{3})/); return m ? m[1] : String(s); };
+  const C = { active: '#1F77B4', odfm: '#E67E22', odhubs: '#8E44AD', fixed: '#16A085', ful: '#7E8B8D', comb: '#C0392B', target: '#2C3D4F', done: '#27AE60', repl: '#F28C33' };
+  const PIE = ['#4472C4', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646', '#2E75B6', '#A9443F', '#70AD47', '#5B3F8C', '#31859C', '#E36C09', '#7F9FD6', '#D99594', '#C3D69B', '#B2A1C7'];
+  function chartCard(title, svg, wide, legend) {
+    const card = el('div', 'fx-card fx-chartcard' + (wide ? ' wide' : ''));
+    card.appendChild(el('h3', null, title));
+    if (legend && legend.length) { const lg = el('div', 'fx-legend'); legend.forEach(([n, c, dash]) => { const s = el('span'); const k = el('i'); k.style.background = dash ? 'transparent' : c; if (dash) k.style.borderTop = '2px dashed ' + c; s.append(k, document.createTextNode(n)); lg.appendChild(s); }); card.appendChild(lg); }
+    card.appendChild(svg); return card;
+  }
+  // column / line / stacked chart; labels always visible
+  function vchart(labels, series, o) {
+    o = o || {};
+    const W = o.w || 720, H = o.h || 260, m = { t: 22, r: 10, b: 34, l: 42 };
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, class: 'fx-svg', role: 'img', 'aria-label': o.label || '' });
+    const n = labels.length; if (!n) { svg.appendChild(sv('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', class: 'fx-t' }, 'No data')); return svg; }
+    let max = 0;
+    labels.forEach((_, i) => { if (o.stacked) max = Math.max(max, series.reduce((a, s) => a + (s.values[i] || 0), 0)); else series.forEach((s) => { if (s.values[i] != null) max = Math.max(max, s.values[i]); }); });
+    max = max || 1; const top = max * 1.18;
+    const y = (v) => H - m.b - (v / top) * (H - m.t - m.b);
+    const bw = (W - m.l - m.r) / n, x = (i) => m.l + i * bw + bw / 2;
+    const step = Math.pow(10, Math.floor(Math.log10(top))) * (top / Math.pow(10, Math.floor(Math.log10(top))) > 5 ? 2 : 1);
+    for (let v = 0; v <= top; v += step) { svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: 'fx-grid' })); svg.appendChild(sv('text', { x: m.l - 6, y: y(v) + 3, 'text-anchor': 'end', class: 'fx-t' }, v >= 1000 ? (v / 1000) + 'k' : String(Math.round(v * 10) / 10))); }
+    const every = Math.max(1, Math.ceil(n * 42 / (W - m.l - m.r)));
+    labels.forEach((l, i) => { if (i % every === 0) svg.appendChild(sv('text', { x: x(i), y: H - m.b + 14, 'text-anchor': 'middle', class: 'fx-t' }, l)); });
+    const fs = bw < 18 ? 8 : 10, barW = Math.max(2, bw * (o.stacked || series.filter((s) => s.type !== 'line').length === 1 ? 0.62 : 0.8 / series.filter((s) => s.type !== 'line').length));
+    const bars = series.filter((s) => s.type !== 'line');
+    if (o.stacked) {
+      const base = labels.map(() => 0);
+      bars.forEach((s) => labels.forEach((_, i) => { const v = s.values[i] || 0; if (!v) return; const y0 = base[i], y1 = y0 + v; svg.appendChild(sv('rect', { x: x(i) - barW / 2, width: barW, y: y(y1), height: Math.max(0, y(y0) - y(y1)), fill: s.color })); if (y(y0) - y(y1) > 11 && barW > 12) svg.appendChild(sv('text', { x: x(i), y: (y(y0) + y(y1)) / 2 + 3.5, 'text-anchor': 'middle', class: 'fx-in', 'font-size': fs - 1 }, String(v))); base[i] = y1; }));
+      base.forEach((v, i) => svg.appendChild(sv('text', { x: x(i), y: y(v) - 4, 'text-anchor': 'middle', class: 'fx-v', 'font-size': fs }, String(Math.round(v * 10) / 10))));
+    } else {
+      bars.forEach((s, k) => labels.forEach((_, i) => { const v = s.values[i]; if (v == null) return; const bx = x(i) - (barW * bars.length) / 2 + k * barW;
+        svg.appendChild(sv('rect', { x: bx, width: barW - (bars.length > 1 ? 1 : 0), y: y(v), height: Math.max(0, y(0) - y(v)), rx: Math.min(3, barW / 3), fill: s.color }));
+        if (s.inside && y(0) - y(v) > 16 && barW > 14) svg.appendChild(sv('text', { x: bx + barW / 2, y: y(v) + 12, 'text-anchor': 'middle', class: 'fx-in', 'font-size': fs }, s.raw[i]));
+        else svg.appendChild(sv('text', { x: bx + barW / 2, y: y(v) - 4, 'text-anchor': 'middle', class: 'fx-v', 'font-size': bars.length > 2 ? fs - 1 : fs }, s.raw[i])); }));
+    }
+    series.filter((s) => s.type === 'line').forEach((s) => {
+      let d = ''; s.values.forEach((v, i) => { if (v == null) return; d += (d ? ' L' : 'M') + x(i) + ' ' + y(v); });
+      svg.appendChild(sv('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-dasharray': s.dash ? '6 4' : 'none', 'stroke-linejoin': 'round' }));
+      s.values.forEach((v, i) => { if (v == null) return; svg.appendChild(sv(s.dash ? 'rect' : 'circle', s.dash ? { x: x(i) - 3.5, y: y(v) - 3.5, width: 7, height: 7, transform: `rotate(45 ${x(i)} ${y(v)})`, fill: s.color } : { cx: x(i), cy: y(v), r: 3.2, fill: s.color }));
+        if (s.labels !== false) svg.appendChild(sv('text', { x: x(i), y: y(v) - 7, 'text-anchor': 'middle', class: 'fx-v', 'font-size': fs, fill: s.dash ? s.color : '' }, s.raw[i])); });
+    });
+    svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), class: 'fx-axis' }));
+    return svg;
+  }
+  function hbars(labels, values, raw, colors) {
+    const W = 720, bh = 18, gap = 6, lw = 170, H = labels.length * (bh + gap) + 10;
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, class: 'fx-svg', role: 'img', 'aria-label': 'Active stars by hub' });
+    const max = Math.max(1, ...values.filter((v) => v != null)) * 1.12;
+    labels.forEach((l, i) => { const yy = 5 + i * (bh + gap), v = values[i] || 0, w = (v / max) * (W - lw - 50);
+      svg.appendChild(sv('text', { x: lw - 8, y: yy + bh / 2 + 4, 'text-anchor': 'end', class: 'fx-t', 'font-size': 11 }, l));
+      svg.appendChild(sv('rect', { x: lw, y: yy, height: bh, width: Math.max(1, w), rx: 3, fill: colors[i] }));
+      svg.appendChild(sv('text', { x: lw + w + 6, y: yy + bh / 2 + 4, class: 'fx-v', 'font-size': 11 }, raw[i])); });
+    return svg;
+  }
+  function pie(labels, values, raw, pct) {
+    const wrap = el('div', 'fx-pie');
+    const S = 260, R = 122, cx = S / 2, cy = S / 2, tot = values.reduce((a, b) => a + (b || 0), 0) || 1;
+    const svg = sv('svg', { viewBox: `0 0 ${S} ${S}`, class: 'fx-svg fx-piesvg', role: 'img', 'aria-label': 'Done without replacement by hub' });
+    let a0 = -Math.PI / 2;
+    values.forEach((v, i) => { const a1 = a0 + ((v || 0) / tot) * Math.PI * 2, large = a1 - a0 > Math.PI ? 1 : 0;
+      const p = values.length === 1 ? sv('circle', { cx, cy, r: R, fill: PIE[i % PIE.length] }) : sv('path', { d: `M${cx} ${cy} L${cx + R * Math.cos(a0)} ${cy + R * Math.sin(a0)} A${R} ${R} 0 ${large} 1 ${cx + R * Math.cos(a1)} ${cy + R * Math.sin(a1)} Z`, fill: PIE[i % PIE.length], stroke: 'var(--color-panel)', 'stroke-width': 1.5 });
+      svg.appendChild(p);
+      if (a1 - a0 > 0.14) { const am = (a0 + a1) / 2; svg.appendChild(sv('text', { x: cx + R * 0.62 * Math.cos(am), y: cy + R * 0.62 * Math.sin(am) + 5, 'text-anchor': 'middle', class: 'fx-in', 'font-size': 14 }, raw[i])); }
+      a0 = a1; });
+    const ul = el('ul', 'fx-plegend');
+    labels.forEach((l, i) => { const li = el('li'); const dot = el('i'); dot.style.background = PIE[i % PIE.length]; const nm = el('span', null, l); nm.style.color = PIE[i % PIE.length]; li.append(dot, nm, el('b', null, raw[i] + (pct && pct[i] ? ' · ' + pct[i] : ''))); ul.appendChild(li); });
+    wrap.append(svg, ul); return wrap;
+  }
+  let lastPie = null;
+  function chartsFor(t) {
+    if (!t.header) return [];
+    const H = t.cols.map((i) => (cells(t.header)[i] || '').toLowerCase());
+    const rows = t.rows.filter((r) => !totalRow(cells(r)[t.cols[0]]) && cells(r)[t.cols[0]]);
+    const at = (name) => { const j = H.findIndex((h) => h.startsWith(name)); return j < 0 ? null : t.cols[j]; };
+    const raw = (i) => rows.map((r) => cells(r)[i]);
+    const vals = (i) => rows.map((r) => nval(cells(r)[i]));
+    const ser = (i, name, color, more) => Object.assign({ name, color, values: vals(i), raw: raw(i) }, more || {});
+    const out = [];
+    // Daily Active Stars trend
+    if (H.length === 2 && H[0] === 'date' && H[1].startsWith('active stars')) {
+      const s = ser(t.cols[1], 'Active stars', C.active, { inside: true });
+      out.push(chartCard(t.title ? t.title + ' — trend' : 'Daily Active Stars Trend (selected month)', vchart(raw(t.cols[0]).map(dayLbl), [s], { label: 'Daily active stars' }), false));
+    }
+    // Active Stars by Hub (selected day)
+    if (H.length === 2 && H[0] === 'hub' && H[1] === 'active stars') {
+      const trips = ['on-demand fm', 'fixed fm', 'on-demand hubs fm'];
+      const lab = raw(t.cols[0]); const colors = lab.map((l) => (trips.includes(l.toLowerCase()) ? '#9AA5B1' : C.active));
+      out.push(chartCard('Active Stars by Hub (selected day)', hbars(lab, vals(t.cols[1]), raw(t.cols[1]), colors), false));
+    }
+    // Trips Performance
+    if (H[0] === 'date' && at('on-demand fm') != null && at('fulfillment') != null && at('fixed fm') != null && at('total demand') == null) {
+      const d = raw(t.cols[0]).map(dayLbl);
+      const comb = at('fm trips') != null ? at('fm trips') : at('trips excl');
+      [[at('on-demand fm'), 'On-demand FM – Daily Trend', C.odfm], [at('on-demand hubs fm'), 'On-demand Hubs FM – Daily Trend', C.odhubs], [at('fixed fm'), 'Fixed FM – Daily Trend', C.fixed], [at('fulfillment'), 'Fulfillment – Daily Trend', C.ful], [comb, 'FM Trips (On-demand&Fixed)', C.comb]]
+        .forEach(([i, title, color]) => { if (i != null) out.push(chartCard(title, vchart(d, [ser(i, title, color, { type: 'line' })], { label: title }), false)); });
+    }
+    // Daily FM Hub Target vs Demand
+    if (H[0] === 'date' && at('total demand') != null) {
+      const d = raw(t.cols[0]).map(dayLbl); const ser2 = [ser(at('total demand'), 'Demand', C.comb, { inside: true })];
+      if (at('target') != null && vals(at('target')).some((v) => v != null)) ser2.push(ser(at('target'), 'Target', C.target, { type: 'line', dash: true }));
+      out.push(chartCard('Daily FM Hub Target vs Demand (excl. Fulfillment)', vchart(d, ser2, { h: 280, label: 'Daily target vs demand' }), true, [['Demand', C.comb], ['Target', C.target, true]]));
+    }
+    // Monthly FM Hub Target vs Avg Daily Demand
+    if (H[0] === 'month' && at('avg daily demand') != null) {
+      const ser3 = [ser(at('avg daily demand'), 'Avg daily demand', C.comb, { inside: true })];
+      if (at('target') != null) ser3.push(ser(at('target'), 'Target', C.target, { type: 'line', dash: true }));
+      out.push(chartCard('Monthly FM Hub Target vs Avg Daily Demand', vchart(raw(t.cols[0]), ser3, { label: 'Monthly target vs demand' }), false, [['Avg daily demand', C.comb], ['Target', C.target, true]]));
+    }
+    // Contractor Target vs Done vs Replacement
+    if (H[0] === 'contractor' && at('target') != null && at('done') != null && at('replacement') != null && at('net') != null) {
+      const s4 = [ser(at('target'), 'Target', C.target), ser(at('done'), 'Done (w/o Replacement)', C.done), ser(at('replacement'), 'Replacement', C.repl)];
+      out.push(chartCard('Contractor Target vs Done (w/o Replacement) vs Replacement', vchart(raw(t.cols[0]), s4, { h: 280, label: 'Contractor target vs done' }), true, [['Target', C.target], ['Done (w/o Replacement)', C.done], ['Replacement', C.repl]]));
+    }
+    // Done without Replacement by Hub (selected contractor)
+    if (H[0].startsWith('hub / branch') && H[1] && H[1].startsWith('done w/o')) {
+      const p = t.cols[2] != null ? raw(t.cols[2]) : null;
+      const total = vals(t.cols[1]).reduce((a, b) => a + (b || 0), 0);
+      lastPie = { labels: raw(t.cols[0]), values: vals(t.cols[1]), raw: raw(t.cols[1]), pct: p, total };
+      out.push(chartCard('Done without Replacement by Hub/Branch — total ' + total, pie(raw(t.cols[0]), vals(t.cols[1]), raw(t.cols[1]), p), false));
+    }
+    // the same hub pie again, beside the Contractor Target Details summary row (section 8)
+    if (H[0] === 'contractor' && at('target') != null && at('done') != null && at('missing') != null && at('net') == null && lastPie) {
+      const card = chartCard('Done without Replacement by Hub/Branch — total ' + lastPie.total, pie(lastPie.labels, lastPie.values, lastPie.raw, lastPie.pct), false);
+      card.dataset.after = '1'; out.push(card);
+    }
+    return out;
+  }
+  function renderKV(t) {
+    const card = el('div', 'fx-card');
+    if (t.title) card.appendChild(el('h3', null, t.title));
+    const dl = el('dl', 'fx-kv');
+    t.pairs.forEach(([k, v]) => {
+      const dt = el('dt', null, k), dd = el('dd', null, v);
+      const sc = statusCls(v || ''); if (sc) dd.classList.add(sc);
+      if (k && k === k.toUpperCase() && /[A-Z]/.test(k) && k.length > 3) { dt.classList.add('tot'); dd.classList.add('tot'); }
+      dl.append(dt, dd);
+    });
+    card.appendChild(dl); return card;
+  }
+  function renderText(t) {
+    const card = el('div', 'fx-card');
+    card.appendChild(el('h3', null, t.head));
+    t.lines.forEach((x) => card.appendChild(el('p', 'fx-para', x)));
+    return card;
+  }
+  function renderSection(sec, idx) {
+    const s = el('section', 'fx-sec'); s.id = 'sec-' + idx;
+    const parts = sec.title.split('•').map((x) => x.trim()).filter(Boolean);
+    const h = mark(el('h2', null, parts[0].replace(/\s{2,}/g, ' ')), sec.r, 'A'); s.appendChild(h);
+    if (parts.length > 1) s.appendChild(el('p', 'meta', parts.slice(1).join('  ·  ')));
+    const items = parseSection(sec);
+    // attach headerless TOTAL/AVERAGE blocks to the table above them
+    let lastTable = null; const out = [];
+    items.forEach((it) => {
+      if (it.type === 'table') { lastTable = it; out.push(it); return; }
+      if (it.type === 'plain' && lastTable && it.rows.length && it.rows.every((r) => totalRow(cells(r)[it.cols[0]])) && it.cols.every((i) => lastTable.cols.includes(i))) { lastTable.footer = (lastTable.footer || []).concat(it.rows); return; }
+      if (it.type !== 'gap') lastTable = it.type === 'plain' || it.type === 'kpis' || it.type === 'heading' || it.type === 'note' ? null : lastTable;
+      out.push(it);
+    });
+    const merged = []; let lastKV = {};
+    out.forEach((it) => {
+      if (it.type === 'gap' || it.type === 'heading' || it.type === 'note' || it.type === 'kpis') { lastKV = {}; merged.push(it); return; }
+      if (it.type === 'kv') { const k = it.cols.join(','); if (lastKV[k]) { lastKV[k].pairs = lastKV[k].pairs.concat(it.pairs); return; } lastKV[k] = it; }
+      merged.push(it);
+    });
+    out.length = 0; merged.forEach((x) => out.push(x));
+    let grid = null;
+    const ensureGrid = () => { if (!grid) { grid = el('div', 'fx-grid'); s.appendChild(grid); } return grid; };
+    out.forEach((it) => {
+      if (it.type === 'gap') { grid = null; return; }
+      if (it.type === 'heading') { grid = null; s.appendChild(mark(el('h3', 'fx-h', it.text), it.r, it.col)); return; }
+      if (it.type === 'note') { grid = null; s.appendChild(mark(el('p', 'fx-note', it.text), it.r, it.col)); return; }
+      if (it.type === 'kpis') {
+        grid = null; const g = el('div', 'fx-kpis');
+        it.items.forEach((k) => { const c = el('div', 'fx-kpi'); c.appendChild(el('div', 'l', k.label)); const v = mark(el('div', 'v', k.value), k.r, k.col); c.appendChild(v); g.appendChild(c); });
+        s.appendChild(g); return;
+      }
+      if (it.type === 'table') { const cs = chartsFor(it); cs.filter((c) => !c.dataset.after).forEach((c) => ensureGrid().appendChild(c)); const after = cs.filter((c) => c.dataset.after); if (after.length) { const tc = renderTable(it); tc.classList.remove('wide'); ensureGrid().appendChild(tc); after.forEach((c) => ensureGrid().appendChild(c)); return; } }
+      ensureGrid().appendChild(it.type === 'table' ? renderTable(it) : it.type === 'kv' ? renderKV(it) : it.type === 'text' ? renderText(it) : renderPlain(it));
+    });
+    return s;
+  }
+  function renderControls(rows) {
+    const box = $('#fx-ctl'); box.replaceChildren();
+    rows.forEach((row) => {
+      const cs = cells(row);
+      for (let i = 0; i < L.length - 1; i++) {
+        if (cs[i] && cs[i + 1] && !isNum(cs[i]) && cs[i].length < 40) {
+          const chip = el('div', 'fx-chip'); chip.appendChild(el('span', 'k', cs[i])); chip.appendChild(mark(el('span', 'v', cs[i + 1]), row.r, L[i + 1])); box.appendChild(chip); i++;
+        }
+      }
+    });
+  }
+
+  
+
+  /* ---------- live link to the Dashboard tab (read A1:N900, write only the six control cells) ---------- */
+  const SERVER = 'Google Sheets', SID = '18iNDExbAduDjnLav9o1npm7ELpw7v7uv_t7DK_p9Sqo';
+  const READ = { spreadsheetId: SID, range: 'Dashboard!A1:N2000' };
+  const CELLS = { day: 'B4', month: 'E4', con: 'H4', star: 'B5', start: 'E5', end: 'H5' };
+  const MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const MONTHS_RE = /^(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/;
+  let mcp = null, rows = [], built = '', busy = false;
+  const toISO = (s) => { const m = String(s || '').trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/); if (!m) return ''; const mi = MON.indexOf(m[2].toLowerCase()); return mi < 0 ? '' : m[3] + '-' + String(mi + 1).padStart(2, '0') + '-' + m[1].padStart(2, '0'); };
+  const serial = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 864e5); };
+  const at = (r, c) => { const row = rows.find((x) => x.r === r); return row ? (row[c] || '').trim() : ''; };
+  const banner = (msg, btn) => { const b = $('#fx-banner'); b.replaceChildren(); if (!msg) return; const d = el('div', 'fx-banner', msg); if (btn) { const k = el('button', 'fx-btn', btn.label); k.type = 'button'; k.addEventListener('click', btn.fn); d.appendChild(el('br')); d.appendChild(k); } b.appendChild(d); };
+  const explain = (e) => {
+    const c = e && e.code, s = SERVER;
+    if (c === 'needs_reauth') return 'Reconnect ' + s + ' in claude.ai Settings → Connectors, then press Refresh now.';
+    if (c === 'server_not_connected' || c === 'selection_required') return 'Add the ' + s + ' connector in claude.ai Settings → Connectors to see this dashboard.';
+    if (c === 'not_in_manifest' || c === 'approval_required' || c === 'consent_required') return 'This page needs your permission to use ' + s + '.';
+    if (c === 'blocked_by_policy') return 'Your organization blocks ' + s + ' for this page.';
+    if (c === 'tool_error') return 'Google Sheets answered with an error: ' + (e.message || '');
+    if (c === 'server_unavailable' || c === 'rate_limited') return 'Google Sheets did not answer in time. The page will try again shortly.';
+    if (c === 'not_granted' || c === 'capability_disabled' || c === 'capability_removed') return 'Connectors are not available in this view. Open the dashboard on claude.ai.';
+    return 'Could not reach Google Sheets' + (e && e.message ? ': ' + e.message : '.');
+  };
+  const payloadOf = (res) => { let p = res && res.payload; if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) {} } if ((!p || !p.values) && res && Array.isArray(res.content)) { const t = res.content.find((x) => x.type === 'text'); if (t) { try { p = JSON.parse(t.text); } catch (e) {} } } return p; };
+  function accept(res) {
+    const p = payloadOf(res);
+    if (!p || !Array.isArray(p.values)) { banner('Google Sheets returned no values for the Dashboard tab.'); return; }
+    rows = p.values.map((v, i) => { const o = { r: i + 1 }; L.forEach((c, j) => { o[c] = v && v[j] != null ? String(v[j]) : ''; }); return o; });
+    banner('');
+    const when = res && res.cache && res.cache.storedAt ? new Date(res.cache.storedAt) : new Date();
+    $('#fx-upd').textContent = 'Live from the Dashboard tab · updated ' + when.toLocaleTimeString() + ' · checks every minute';
+    $('#fx-dot').style.background = '';
+    draw();
+  }
+  function fillControls() {
+    const form = $('#fx-form'); form.hidden = false;
+    const day = $('#c-day'), mon = $('#c-month'), con = $('#c-con'), star = $('#c-star'), st = $('#c-start'), en = $('#c-end');
+    if (document.activeElement !== day) day.value = toISO(at(4, 'B'));
+    if (document.activeElement !== st) st.value = toISO(at(5, 'E'));
+    if (document.activeElement !== en) en.value = toISO(at(5, 'H'));
+    if (document.activeElement !== star) star.value = at(5, 'B');
+    // months: every "Month YYYY" value shown anywhere on the Dashboard tab
+    const ms = new Set(); rows.forEach((r) => L.forEach((c) => { const v = (r[c] || '').trim(); if (MONTHS_RE.test(v)) ms.add(v); }));
+    const curM = at(4, 'E'); if (curM) ms.add(curM);
+    const mlist = [...ms].sort((a, b) => new Date('1 ' + a) - new Date('1 ' + b));
+    if (document.activeElement !== mon) { mon.replaceChildren(...mlist.map((m) => new Option(m, m))); mon.value = curM; }
+    // contractors: the first column of the Contractor Target table on the Dashboard tab
+    const names = []; let i = rows.findIndex((r) => (r.A || '').trim() === 'Contractor' && (r.B || '').trim() === 'Target');
+    if (i >= 0) for (let k = i + 1; k < rows.length; k++) { const v = (rows[k].A || '').trim(); if (!v || /^total$/i.test(v)) { if (!v && names.length && !(rows[k + 1] && (rows[k + 1].A || '').trim())) break; if (/^total$/i.test(v)) break; continue; } names.push(v); }
+    const curC = at(4, 'H'); const clist = ['All'].concat([...new Set(names)].sort((a, b) => a.localeCompare(b))); if (curC && !clist.includes(curC)) clist.push(curC);
+    if (document.activeElement !== con) { con.replaceChildren(...clist.map((n) => new Option(n === 'All' ? 'All contractors' : n, n))); con.value = curC || 'All'; }
+  }
+  async function writeCell(key, value, label) {
+    if (!mcp || busy) return; busy = true;
+    const save = $('#fx-save'); save.classList.remove('err'); save.textContent = 'Saving ' + label + ' to the Dashboard tab…';
+    try {
+      await mcp.callTool(SERVER, 'update_values', { spreadsheetId: SID, range: 'Dashboard!' + CELLS[key], values: [[value]] }, { cache: false });
+      save.textContent = label + ' saved. Recalculating…';
+      await new Promise((r) => setTimeout(r, 900));
+      const res = await mcp.callTool(SERVER, 'get_values', READ, { cache: { refresh: true } });
+      accept(res); save.textContent = label + ' updated.';
+    } catch (e) { save.classList.add('err'); save.textContent = explain(e); }
+    finally { busy = false; }
+  }
+  function wireControls() {
+    const day = $('#c-day'), mon = $('#c-month'), con = $('#c-con'), star = $('#c-star'), st = $('#c-start'), en = $('#c-end');
+    day.addEventListener('change', () => { if (day.value && day.validity.valid) writeCell('day', serial(day.value), 'Selected Day'); });
+    st.addEventListener('change', () => { if (st.value && st.validity.valid) writeCell('start', serial(st.value), 'Start Date'); });
+    en.addEventListener('change', () => { if (en.value && en.validity.valid) writeCell('end', serial(en.value), 'End Date'); });
+    mon.addEventListener('change', () => { if (mon.value) writeCell('month', mon.value, 'Selected Month'); });
+    con.addEventListener('change', () => { if (con.value) writeCell('con', con.value, 'Contractor'); });
+    star.addEventListener('keydown', (e) => { if (e.key === 'Enter') writeCell('star', star.value.trim(), 'Star Name / ID'); });
+    star.addEventListener('change', () => writeCell('star', star.value.trim(), 'Star Name / ID'));
+    [day, st, en].forEach((x) => x.addEventListener('blur', fillControls));
+  }
+  /* menu: show one section at a time; the controls box stays pinned at the top */
+  let active = 0;
+  function showSec(i, keepScroll) {
+    active = Math.max(0, i);
+    document.querySelectorAll('.fx-sec').forEach((s, k) => { s.hidden = k !== active; });
+    document.querySelectorAll('.fx-nav a').forEach((a, k) => { a.classList.toggle('on', k === active); if (k === active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    if (!keepScroll) { const m = $('#fx-main'); const fh = $('#fx-form').offsetHeight || 0; const y = m.getBoundingClientRect().top + window.scrollY - fh - 16; if (window.scrollY > y) window.scrollTo({ top: Math.max(0, y) }); }
+  }
+  new ResizeObserver(() => document.documentElement.style.setProperty('--form-h', ($('#fx-form').offsetHeight || 0) + 'px')).observe($('#fx-form'));
+  function draw() {
+    const sig = JSON.stringify(rows);
+    fillControls();
+    if (sig === built) return; built = sig;
+    if (at(1, 'A')) $('#fx-title').textContent = at(1, 'A');
+    if (at(2, 'A')) $('#fx-sub').textContent = at(2, 'A');
+    const secs = sections(rows);
+    const ctl = secs.find((s) => /^controls/i.test(s.title));
+    const shown = secs.filter((s) => s !== ctl);
+    const keep = window.scrollY;
+    $('#fx-main').replaceChildren(...shown.map((s, i) => renderSection(s, i)));
+    const nav = $('#fx-nav'); nav.replaceChildren();
+    shown.forEach((s, i) => {
+      const parts = s.title.split('•').map((x) => x.trim()).filter(Boolean);
+      const a = el('a'); a.href = '#sec-' + i; a.appendChild(document.createTextNode(parts[0].replace(/\s{2,}/g, ' ')));
+      if (parts[1]) a.appendChild(el('small', null, parts.slice(1).join(' · ')));
+      a.addEventListener('click', (e) => { e.preventDefault(); showSec(i); });
+      nav.appendChild(a);
+    });
+    try { window.scrollTo(0, keep); } catch (e) {}
+    showSec(Math.min(active, shown.length - 1), true);
+  }
+  const io = { observe() {} };
+  async function load(manual) {
+    try { const res = await mcp.callTool(SERVER, 'get_values', READ, { cache: { refresh: true } }); accept(res); }
+    catch (e) { const btn = ['not_in_manifest', 'approval_required', 'consent_required'].includes(e.code) ? { label: 'Allow and load', fn: () => load(true) } : (e.retryable ? { label: 'Try again', fn: () => load(true) } : null); banner(explain(e), btn); $('#fx-dot').style.background = 'var(--color-bad)'; if (!rows.length) $('#fx-main').replaceChildren(); }
+  }
+  (async () => {
+    wireControls();
+    mcp = window.claude && window.claude.use ? await window.claude.use('mcp') : null;
+    if (!mcp) { banner('Open this dashboard on claude.ai with the Google Sheets connector to see live data.'); $('#fx-upd').textContent = 'Not connected'; $('#fx-main').replaceChildren(); return; }
+    mcp.watchTool(SERVER, 'get_values', READ, (ev) => {
+      if (ev.type === 'data') { if (!busy) accept(ev.result); return; }
+      const e = ev.error || {};
+      if (['needs_reauth', 'server_not_connected', 'blocked_by_policy', 'approval_required', 'not_in_manifest', 'selection_required', 'consent_required'].includes(e.code)) { rows = []; built = ''; $('#fx-main').replaceChildren(); }
+      const btn = ['not_in_manifest', 'approval_required', 'consent_required'].includes(e.code) ? { label: 'Allow and load', fn: () => load(true) } : null;
+      banner(explain(e), btn); $('#fx-dot').style.background = 'var(--color-bad)';
+    }, { refetchInterval: 60000, cache: { staleTime: 30000 } });
+  })();
+  $('#fx-refresh').addEventListener('click', () => { if (mcp) load(true); });
+})();
+
+</script>
+</body>
+</html>
