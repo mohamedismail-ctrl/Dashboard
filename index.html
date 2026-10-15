@@ -78,7 +78,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .fx dl.fx-kv dd{text-align:right;font-weight:600;overflow-wrap:anywhere}
 .fx dl.fx-kv{grid-template-columns:minmax(8rem,auto) minmax(0,1fr)!important;column-gap:1rem}
 .fx-sec>h2{background:var(--head);color:#fff;padding:.55rem .8rem;border-radius:6px;margin:0 0 .5rem}
-.fx th{background:var(--thead)!important;color:var(--color-fg)!important}
+.fx th{background:var(--thead)!important;color:var(--color-fg)!important;white-space:normal!important;min-width:4.5rem;max-width:14rem;vertical-align:bottom;line-height:1.25}
 .fx-kpi{background:var(--card)}
 .fx-nav a.on{background:var(--head)!important;color:#fff}
 .fx-nav a.on small{color:#dadce0}
@@ -410,23 +410,27 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       out.push(chartCard('Active Stars by Hub (selected day)', hbars(lab, vals(t.cols[1]), raw(t.cols[1]), colors), false));
     }
     // Trips Performance
-    if (H[0] === 'date' && at('on-demand fm') != null && at('fulfillment') != null && at('fixed fm') != null && at('total demand') == null) {
+    if (H[0] === 'date' && at('on-demand fm') != null && at('fulfillment') != null && at('fixed fm') != null && at('total demand') == null && at('total fm active stars') == null) {
       const d = raw(t.cols[0]).map(dayLbl);
       const comb = at('fm trips') != null ? at('fm trips') : at('trips excl');
       [[at('on-demand fm'), 'On-demand FM – Daily Trend', C.odfm], [at('on-demand hubs fm'), 'On-demand Hubs FM – Daily Trend', C.odhubs], [at('fixed fm'), 'Fixed FM – Daily Trend', C.fixed], [at('fulfillment'), 'Fulfillment – Daily Trend', C.ful], [comb, 'FM Trips (On-demand&Fixed)', C.comb]]
         .forEach(([i, title, color]) => { if (i != null) out.push(chartCard(title, vchart(d, [ser(i, title, color, { type: 'line' })], { label: title }), false)); });
     }
-    // Daily FM Hub Target vs Demand
-    if (H[0] === 'date' && at('total demand') != null) {
-      const d = raw(t.cols[0]).map(dayLbl); const ser2 = [ser(at('total demand'), 'Demand', C.comb, { inside: true })];
+    // Section 6: Daily Active Stars trend + Daily FM Hub Target vs Active Stars
+    const fmTot = at('total demand') != null ? at('total demand') : at('total fm active stars');
+    if (H[0] === 'date' && fmTot != null) {
+      const d = raw(t.cols[0]).map(dayLbl);
+      out.push(chartCard('Daily Active Stars Trend — Hubs + On-demand FM + Fixed FM + On-demand Hubs FM', vchart(d, [ser(fmTot, 'Active stars', C.active, { inside: true })], { label: 'Daily active stars' }), true));
+      const ser2 = [ser(fmTot, 'Active Stars (Hubs & Trips)', C.comb, { inside: true })];
       if (at('target') != null && vals(at('target')).some((v) => v != null)) ser2.push(ser(at('target'), 'Target', C.target, { type: 'line', dash: true }));
-      out.push(chartCard('Daily FM Hub Target vs Demand (excl. Fulfillment)', vchart(d, ser2, { h: 280, label: 'Daily target vs demand' }), true, [['Demand', C.comb], ['Target', C.target, true]]));
+      out.push(chartCard('Daily FM Hub Target vs Active Stars (excl. Fulfillment)', vchart(d, ser2, { h: 280, label: 'Daily target vs active stars' }), true, [['Active Stars (Hubs & Trips)', C.comb], ['Target', C.target, true]]));
     }
     // Monthly FM Hub Target vs Avg Daily Demand
-    if (H[0] === 'month' && at('avg daily demand') != null) {
-      const ser3 = [ser(at('avg daily demand'), 'Avg daily demand', C.comb, { inside: true })];
+    const mAvg = at('avg daily demand') != null ? at('avg daily demand') : at('avg daily active stars');
+    if (H[0] === 'month' && mAvg != null) {
+      const ser3 = [ser(mAvg, 'Avg daily active stars', C.comb, { inside: true })];
       if (at('target') != null) ser3.push(ser(at('target'), 'Target', C.target, { type: 'line', dash: true }));
-      out.push(chartCard('Monthly FM Hub Target vs Avg Daily Demand', vchart(raw(t.cols[0]), ser3, { label: 'Monthly target vs demand' }), false, [['Avg daily demand', C.comb], ['Target', C.target, true]]));
+      out.push(chartCard('Monthly FM Hub Target vs Avg Daily Active Stars', vchart(raw(t.cols[0]), ser3, { label: 'Monthly target vs active stars' }), false, [['Avg daily active stars', C.comb], ['Target', C.target, true]]));
     }
     // Contractor Target vs Done vs Replacement
     if (H[0] === 'contractor' && at('target') != null && at('done') != null && at('replacement') != null && at('net') != null) {
