@@ -567,7 +567,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
        • "Publish to web" CSV link of the Dashboard tab  (read-only, easiest)
        • Apps Script web app URL from FleetDashboardAPI.gs   (read + filters)
      Put it in EMBEDDED_LINK below, or open the page with ?api=<link>, or paste it in the box the page shows. */
-  const EMBEDDED_LINK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSt3kPOxS6CBA78DanFw0HBiMny3Gn5b9EJ6o4ZaIVwnr3iVFGNUK7pGnp68T2PQJ74prajwOqlwnCF/pub?output=csv';
+  const EMBEDDED_LINK = 'https://script.google.com/macros/s/AKfycbyj1-zdwrNnahFUxcwpVF6ifHO3KS3NOrhB_LlSP1SIIOwrXbtfVw4n_L3DjY6P8Klg4A/exec';
+  const BACKUP_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSt3kPOxS6CBA78DanFw0HBiMny3Gn5b9EJ6o4ZaIVwnr3iVFGNUK7pGnp68T2PQJ74prajwOqlwnCF/pub?output=csv';
   const lsGet = () => { try { return localStorage.getItem('fleetDashLink') || ''; } catch (e) { return ''; } };
   const WEBAPP_URL = (new URLSearchParams(location.search).get('api') || (/^https:/.test(EMBEDDED_LINK) ? EMBEDDED_LINK : '') || lsGet()).trim();
   const isCsv = () => /docs\.google\.com\/spreadsheets\/d\/e\/.+\/pub/.test(WEBAPP_URL) || /output=csv/.test(WEBAPP_URL);
@@ -663,7 +664,20 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     row.append(inp, go); d.appendChild(row); b.appendChild(d);
   }
   async function load(manual) {
-    try { const res = mcp ? await mcp.callTool(SERVER, 'get_values', READ, { cache: { refresh: true } }) : { payload: await webGet() }; accept(res); }
+    try {
+      let res;
+      if (mcp) res = await mcp.callTool(SERVER, 'get_values', READ, { cache: { refresh: true } });
+      else {
+        try { res = { payload: await webGet() }; }
+        catch (err) {
+          if (!BACKUP_CSV || isCsv()) throw err;
+          const r = await fetch(BACKUP_CSV + '&t=' + Date.now()); if (!r.ok) throw err;
+          res = { payload: { values: parseCSV(await r.text()) } };
+          $('#fx-save').textContent = 'Read from the published copy (the web app did not answer): ' + (err.message || '') + '. Filters cannot be saved until it answers.';
+        }
+      }
+      accept(res);
+    }
     catch (e) { const btn = ['not_in_manifest', 'approval_required', 'consent_required'].includes(e.code) ? { label: 'Allow and load', fn: () => load(true) } : (e.retryable ? { label: 'Try again', fn: () => load(true) } : null); banner(explain(e), btn); $('#fx-dot').style.background = 'var(--color-bad)'; if (!rows.length) $('#fx-main').replaceChildren(); }
   }
   (async () => {
