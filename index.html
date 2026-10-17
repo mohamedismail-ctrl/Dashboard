@@ -109,6 +109,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .fx-kpi.link .l::after{content:" \2193";color:var(--sec)}
 .fx-card,.fx-h{scroll-margin-top:calc(var(--form-h,0px) + 1.25rem)}
 .fx-flash{outline:2px solid var(--sec);outline-offset:2px;transition:outline-color 1.2s}
+.fx-group{padding-top:var(--cds-gap-md);border-top:1px dashed color-mix(in srgb,var(--sec) 35%,var(--color-border-line))}
 .fx-pair{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:var(--cds-gap-md);align-items:start}
 @media (max-width:900px){.fx-pair{grid-template-columns:1fr}}
 .fx-hero{grid-column:1/-1;text-align:left}
@@ -532,6 +533,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     return String(str).split(/(\s+)/).map((w) => {
       if (!/[A-Za-z]/.test(w)) return w;
       const isFirst = first; first = false;
+      if (!isFirst && SMALL.indexOf(w.toLowerCase()) >= 0) return w.toLowerCase();
       return w.split('/').map((seg, si) => {
         const core = seg.replace(/[^A-Za-z]/g, '');
         if (KEEP_UP.indexOf(core.toUpperCase()) >= 0 && core === core.toUpperCase()) return seg;
@@ -572,7 +574,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     let lastTable = null; const out = [];
     items.forEach((it) => {
       if (it.type === 'table') { lastTable = it; out.push(it); return; }
-      if (it.type === 'plain' && lastTable && it.rows.length && it.rows.every((r) => totalRow(cells(r)[it.cols[0]])) && it.cols.every((i) => lastTable.cols.includes(i))) { lastTable.footer = (lastTable.footer || []).concat(it.rows); return; }
+      if (it.type === 'plain' && it.rows.length && it.rows.every((r) => totalRow(cells(r)[it.cols[0]]))) { const host = [...out].reverse().find((x) => x.type === 'table' && it.cols.every((i) => x.cols.includes(i))); if (host) { host.footer = (host.footer || []).concat(it.rows); return; } }
       if (it.type !== 'gap') lastTable = it.type === 'plain' || it.type === 'kpis' || it.type === 'heading' || it.type === 'note' ? null : lastTable;
       out.push(it);
     });
@@ -583,9 +585,21 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       merged.push(it);
     });
     out.length = 0; merged.forEach((x) => out.push(x));
+    // New Stars: three groups — Done / Left / Replacement — each = by Hub + by Contractor side by side, Details underneath
+    if (s.dataset.k === 'newstars') {
+      const T = (it) => (it.type === 'table' ? (it.title || '') : '').toLowerCase();
+      const G = [[/^done w\/o replacement — by hub/, /^done w\/o replacement — by contractor/, /^done without replacement — details/],
+                 [/^left — by hub/, /^left — by contractor/, /^left — details/],
+                 [/^replacement — by hub/, /^replacement — by contractor/, /^replacement — details/]];
+      const used = new Set(); const boxes = [];
+      G.forEach((g) => { const its = g.map((re) => out.find((it) => !used.has(it) && re.test(T(it)))); if (its.some(Boolean)) { its.forEach((x) => x && used.add(x)); boxes.push({ type: 'groupbox', items: its }); } });
+      const rest = out.filter((it) => !used.has(it));
+      out.length = 0; rest.forEach((x) => out.push(x)); boxes.forEach((b) => { out.push({ type: 'gap' }); out.push(b); });
+    }
     let grid = null;
     const ensureGrid = () => { if (!grid) { grid = el('div', 'fx-grid'); s.appendChild(grid); } return grid; };
     out.forEach((it) => {
+      if (it.type === 'groupbox') { grid = null; const g = el('div', 'fx-grid fx-group'); it.items.forEach((x, j) => { if (!x) return; const c = renderTable(x); if (j < 2) c.classList.remove('wide'); else c.classList.add('wide'); g.appendChild(c); }); s.appendChild(g); return; }
       if (it.type === 'gap') { grid = null; return; }
       if ((it.type === 'heading' || it.type === 'note') && /no hub\/branch recorded[^:]*:\s*0\s*$/i.test(it.text)) return;
       if (it.type === 'table' && it.header && it.rows.length <= 1) { const hh = it.cols.map((i) => (cells(it.header)[i] || '').toLowerCase()); if (hh[0] === 'contractor' && hh.some((h) => h.startsWith('missing')) && !hh.some((h) => h.startsWith('net'))) return; }
