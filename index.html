@@ -336,11 +336,17 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     const n = labels.length; if (!n) { svg.appendChild(sv('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', class: 'fx-t' }, 'No data')); return svg; }
     let max = 0;
     labels.forEach((_, i) => { if (o.stacked) max = Math.max(max, series.reduce((a, s) => a + (s.values[i] || 0), 0)); else series.forEach((s) => { if (s.values[i] != null) max = Math.max(max, s.values[i]); }); });
-    max = max || 1; const top = max * 1.18;
-    const y = (v) => H - m.b - (v / top) * (H - m.t - m.b);
+    max = max || 1;
+    let lo = 0, top = max * 1.18;
+    if (o.zoom) {
+      let mn = Infinity; series.forEach((s) => s.values.forEach((v) => { if (v != null && v < mn) mn = v; }));
+      if (isFinite(mn)) { const span = Math.max(10, max - mn); lo = Math.max(0, Math.floor((mn - span * 0.6) / 10) * 10); top = Math.ceil((max + span * 0.35) / 10) * 10; }
+    }
+    const y = (v) => H - m.b - ((v - lo) / (top - lo)) * (H - m.t - m.b);
     const bw = (W - m.l - m.r) / n, x = (i) => m.l + i * bw + bw / 2;
-    const step = Math.pow(10, Math.floor(Math.log10(top))) * (top / Math.pow(10, Math.floor(Math.log10(top))) > 5 ? 2 : 1);
-    for (let v = 0; v <= top; v += step) { svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: 'fx-grid' })); svg.appendChild(sv('text', { x: m.l - 6, y: y(v) + 3, 'text-anchor': 'end', class: 'fx-t' }, v >= 1000 ? (v / 1000) + 'k' : String(Math.round(v * 10) / 10))); }
+    const rng = top - lo;
+    const step = Math.pow(10, Math.floor(Math.log10(rng))) * (rng / Math.pow(10, Math.floor(Math.log10(rng))) > 5 ? 2 : 1);
+    for (let v = Math.ceil(lo / step) * step; v <= top; v += step) { svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: 'fx-grid' })); svg.appendChild(sv('text', { x: m.l - 6, y: y(v) + 3, 'text-anchor': 'end', class: 'fx-t' }, v >= 1000 ? (v / 1000) + 'k' : String(Math.round(v * 10) / 10))); }
     const every = Math.max(1, Math.ceil(n * 42 / (W - m.l - m.r)));
     labels.forEach((l, i) => { if (i % every === 0) svg.appendChild(sv('text', { x: x(i), y: H - m.b + 14, 'text-anchor': 'middle', class: 'fx-t' }, l)); });
     const fs = bw < 18 ? 8 : 10, barW = Math.max(2, bw * (o.stacked || series.filter((s) => s.type !== 'line').length === 1 ? 0.62 : 0.8 / series.filter((s) => s.type !== 'line').length));
@@ -351,8 +357,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       base.forEach((v, i) => svg.appendChild(sv('text', { x: x(i), y: y(v) - 4, 'text-anchor': 'middle', class: 'fx-v', 'font-size': fs }, String(Math.round(v * 10) / 10))));
     } else {
       bars.forEach((s, k) => labels.forEach((_, i) => { const v = s.values[i]; if (v == null) return; const bx = x(i) - (barW * bars.length) / 2 + k * barW;
-        svg.appendChild(sv('rect', { x: bx, width: barW - (bars.length > 1 ? 1 : 0), y: y(v), height: Math.max(0, y(0) - y(v)), rx: Math.min(3, barW / 3), fill: s.color }));
-        if (s.inside && y(0) - y(v) > 16 && barW > 14) svg.appendChild(sv('text', { x: bx + barW / 2, y: y(v) + 12, 'text-anchor': 'middle', class: 'fx-in', 'font-size': fs }, s.raw[i]));
+        svg.appendChild(sv('rect', { x: bx, width: barW - (bars.length > 1 ? 1 : 0), y: y(v), height: Math.max(0, y(lo) - y(v)), rx: Math.min(3, barW / 3), fill: s.color }));
+        if (s.inside && y(lo) - y(v) > 16 && barW > 14) svg.appendChild(sv('text', { x: bx + barW / 2, y: y(v) + 12, 'text-anchor': 'middle', class: 'fx-in', 'font-size': fs }, s.raw[i]));
         else svg.appendChild(sv('text', { x: bx + barW / 2, y: y(v) - 4, 'text-anchor': 'middle', class: 'fx-v', 'font-size': bars.length > 2 ? fs - 1 : fs }, s.raw[i])); }));
     }
     series.filter((s) => s.type === 'line').forEach((s) => {
@@ -361,7 +367,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       s.values.forEach((v, i) => { if (v == null) return; svg.appendChild(sv(s.dash ? 'rect' : 'circle', s.dash ? { x: x(i) - 3.5, y: y(v) - 3.5, width: 7, height: 7, transform: `rotate(45 ${x(i)} ${y(v)})`, fill: s.color } : { cx: x(i), cy: y(v), r: 3.2, fill: s.color }));
         if (s.labels !== false) svg.appendChild(sv('text', { x: x(i), y: y(v) - 7, 'text-anchor': 'middle', class: 'fx-v', 'font-size': fs, fill: s.dash ? s.color : '' }, s.raw[i])); });
     });
-    svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), class: 'fx-axis' }));
+    svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: y(lo), y2: y(lo), class: 'fx-axis' }));
     return svg;
   }
   function hbars(labels, values, raw, colors) {
@@ -421,9 +427,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     if (H[0] === 'date' && fmTot != null) {
       const d = raw(t.cols[0]).map(dayLbl);
       out.push(chartCard('Daily Active Stars Trend — Hubs + On-demand FM + Fixed FM + On-demand Hubs FM', vchart(d, [ser(fmTot, 'Active stars', C.active, { inside: true })], { label: 'Daily active stars' }), true));
-      const ser2 = [ser(fmTot, 'Active Stars (Hubs & Trips)', C.comb, { type: 'line' })];
-      if (at('target') != null && vals(at('target')).some((v) => v != null)) ser2.push(ser(at('target'), 'Target', C.target, { type: 'line', dash: true, labels: false }));
-      out.push(chartCard('Daily FM Hub Target vs Active Stars (excl. Fulfillment)', vchart(d, ser2, { h: 280, label: 'Daily target vs active stars' }), true, [['Active Stars (Hubs & Trips)', C.comb], ['Target', C.target, true]]));
+      const tgt = at('target') != null ? vals(at('target')).find((v) => v != null) : null;
+      out.push(chartCard('Daily FM Active Stars (Hubs & Trips, excl. Fulfillment)' + (tgt != null ? ' — Target ' + tgt : ''), vchart(d, [ser(fmTot, 'Active Stars (Hubs & Trips)', C.comb, { type: 'line' })], { h: 280, zoom: true, label: 'Daily active stars' }), true));
     }
     // Monthly FM Hub Target vs Avg Daily Demand
     const mAvg = at('avg daily demand') != null ? at('avg daily demand') : at('avg daily active stars');
@@ -443,11 +448,6 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       const total = vals(t.cols[1]).reduce((a, b) => a + (b || 0), 0);
       lastPie = { labels: raw(t.cols[0]), values: vals(t.cols[1]), raw: raw(t.cols[1]), pct: p, total };
       out.push(chartCard('Done without Replacement by Hub/Branch — total ' + total, pie(raw(t.cols[0]), vals(t.cols[1]), raw(t.cols[1]), p), false));
-    }
-    // the same hub pie again, beside the Contractor Target Details summary row (section 8)
-    if (H[0] === 'contractor' && at('target') != null && at('done') != null && at('missing') != null && at('net') == null && lastPie) {
-      const card = chartCard('Done without Replacement by Hub/Branch — total ' + lastPie.total, pie(lastPie.labels, lastPie.values, lastPie.raw, lastPie.pct), false);
-      card.dataset.after = '1'; out.push(card);
     }
     return out;
   }
@@ -494,6 +494,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     const ensureGrid = () => { if (!grid) { grid = el('div', 'fx-grid'); s.appendChild(grid); } return grid; };
     out.forEach((it) => {
       if (it.type === 'gap') { grid = null; return; }
+      if ((it.type === 'heading' || it.type === 'note') && /no hub\/branch recorded[^:]*:\s*0\s*$/i.test(it.text)) return;
+      if (it.type === 'table' && it.header && it.rows.length <= 1) { const hh = it.cols.map((i) => (cells(it.header)[i] || '').toLowerCase()); if (hh[0] === 'contractor' && hh.some((h) => h.startsWith('missing')) && !hh.some((h) => h.startsWith('net'))) return; }
       if (it.type === 'heading') { grid = null; s.appendChild(mark(el('h3', 'fx-h', it.text), it.r, it.col)); return; }
       if (it.type === 'note') { grid = null; s.appendChild(mark(el('p', 'fx-note', it.text), it.r, it.col)); return; }
       if (it.type === 'kpis') {
