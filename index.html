@@ -151,7 +151,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   const cells = (row) => L.map((c) => (row[c] || '').trim());
   const filled = (cs) => cs.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
   const isNum = (s) => { s = String(s).trim(); return /^[-+]?[\d,]*\.?\d+%?$/.test(s) || /^\d{1,2}-[A-Za-z]{3}(-\d{4})?$/.test(s) || /^[A-Za-z]{3} \d{1,2}-[A-Za-z]{3}$/.test(s) || s === '—' || /^not set$/i.test(s) || /^#(N\/A|REF!|ERROR!|VALUE!)/.test(s); };
-  const SEC = /^(overview|active stars details|controls|\d+\.\s)/i;
+  const SEC = /^(overview|active stars details|trips details|new stars|stars? working days|fm target vs active stars|contractor target|ops control room|needs fm hubs|controls|\d+\.\s)/i;
   const statusCls = (v) => { const s = v.toLowerCase(); if (/^(working \(new\)|done|yes)$/.test(s)) return 'ok'; if (/^(left|pending|no|missing)$/.test(s)) return 'bad'; if (/^(replacement \(working\)|pending contractor|pending on sorting|pending audit|pending fleet|pending star)$/.test(s)) return 'warn'; return ''; };
   const totalRow = (t) => /^(total|month total|daily average|all hubs)/i.test(t);
 
@@ -421,8 +421,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     if (H[0] === 'date' && fmTot != null) {
       const d = raw(t.cols[0]).map(dayLbl);
       out.push(chartCard('Daily Active Stars Trend — Hubs + On-demand FM + Fixed FM + On-demand Hubs FM', vchart(d, [ser(fmTot, 'Active stars', C.active, { inside: true })], { label: 'Daily active stars' }), true));
-      const ser2 = [ser(fmTot, 'Active Stars (Hubs & Trips)', C.comb, { inside: true })];
-      if (at('target') != null && vals(at('target')).some((v) => v != null)) ser2.push(ser(at('target'), 'Target', C.target, { type: 'line', dash: true }));
+      const ser2 = [ser(fmTot, 'Active Stars (Hubs & Trips)', C.comb, { type: 'line' })];
+      if (at('target') != null && vals(at('target')).some((v) => v != null)) ser2.push(ser(at('target'), 'Target', C.target, { type: 'line', dash: true, labels: false }));
       out.push(chartCard('Daily FM Hub Target vs Active Stars (excl. Fulfillment)', vchart(d, ser2, { h: 280, label: 'Daily target vs active stars' }), true, [['Active Stars (Hubs & Trips)', C.comb], ['Target', C.target, true]]));
     }
     // Monthly FM Hub Target vs Avg Daily Demand
