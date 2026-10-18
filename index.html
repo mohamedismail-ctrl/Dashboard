@@ -185,7 +185,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   const filled = (cs) => cs.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
   const isNum = (s) => { s = String(s).trim(); return /^[-+]?[\d,]*\.?\d+%?$/.test(s) || /^\d{1,2}-[A-Za-z]{3}(-\d{4})?$/.test(s) || /^[A-Za-z]{3} \d{1,2}-[A-Za-z]{3}$/.test(s) || s === '—' || /^not set$/i.test(s) || /^#(N\/A|REF!|ERROR!|VALUE!)/.test(s); };
   const SEC = /^(overview|active stars details|trips details|new stars|stars? working days|fm target vs active stars|contractor target|ops control room|needs fm hubs|controls|\d+\.\s)/i;
-  const statusCls = (v) => { const s = v.toLowerCase(); if (/^(working \(new\)|done|yes)$/.test(s)) return 'ok'; if (/^(left|pending|no|missing)$/.test(s)) return 'bad'; if (/^(replacement \(working\)|pending contractor|pending on sorting|pending audit|pending fleet|pending star)$/.test(s)) return 'warn'; return ''; };
+  const statusCls = (v) => { const s = v.toLowerCase(); if (/^(working \(new\)|done|yes)$/.test(s)) return 'ok'; if (/^(left|new stars left|pending|no|missing)$/.test(s)) return 'bad'; if (/^(replacement \(working\)|pending contractor|pending on sorting|pending audit|pending fleet|pending star)$/.test(s)) return 'warn'; return ''; };
   const totalRow = (t) => /^(total|month total|daily average|all hubs)/i.test(t);
 
   /* ---------- structure detection ---------- */
@@ -565,7 +565,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       const val = ((k.querySelector('.v') || {}).textContent || '').trim();
       const local = (pre) => { const t = findIn(sec, pre); return t ? () => flash(t) : null; };
       let go = null, where = '';
-      if (/^(done without replacement|replacement|left)$/.test(key)) { go = local(key + ' \u2014 details'); where = lab.trim() + ' details'; }
+      if (/^(done without replacement|replacement|left|new stars left)$/.test(key)) { go = local(key + ' \u2014 details'); where = lab.trim() + ' details'; }
       else if (/^hubs joined/.test(key)) { go = local('done w/o replacement \u2014 by hub'); where = 'Done w/o Replacement \u2014 by Hub Joined'; }
       else if (/^contractors/.test(key)) { go = local('done w/o replacement \u2014 by contractor'); where = 'Done w/o Replacement \u2014 by Contractor'; }
       else if (key === 'missing') {
@@ -607,7 +607,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     if (s.dataset.k === 'newstars') {
       const T = (it) => (it.type === 'table' ? (it.title || '') : '').toLowerCase();
       const G = [[/^done w\/o replacement — by hub/, /^done w\/o replacement — by contractor/, /^done without replacement — details/],
-                 [/^left — by hub/, /^left — by contractor/, /^left — details/],
+                 [/^(new stars )?left — by hub/, /^(new stars )?left — by contractor/, /^(new stars )?left — details/],
                  [/^replacement — by hub/, /^replacement — by contractor/, /^replacement — details/]];
       const used = new Set(); const boxes = [];
       G.forEach((g) => { const its = g.map((re) => out.find((it) => !used.has(it) && re.test(T(it)))); if (its.some(Boolean)) { its.forEach((x) => x && used.add(x)); boxes.push({ type: 'groupbox', items: its }); } });
