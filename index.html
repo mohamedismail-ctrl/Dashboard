@@ -123,6 +123,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .fx-card,.fx-h{scroll-margin-top:calc(var(--form-h,0px) + 1.25rem)}
 .fx-flash{outline:2px solid var(--sec);outline-offset:2px;transition:outline-color 1.2s}
 .fx-group{padding-top:var(--cds-gap-md);border-top:1px dashed color-mix(in srgb,var(--sec) 35%,var(--color-border-line))}
+.fx-two{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--cds-gap-md);align-items:start}
+@media (max-width:860px){.fx-two{grid-template-columns:1fr}}
 .fx-stack{display:flex;flex-direction:column;gap:var(--cds-gap-md);min-width:0}
 .fx table.numtab{table-layout:auto;min-width:100%}
 .fx table.numtab th,.fx table.numtab td.n{text-align:center!important}
@@ -530,8 +532,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     if (H[0] === 'date' && at('on-demand fm') != null && at('fulfillment') != null && at('fixed fm') != null && at('total demand') == null && at('total fm active stars') == null) {
       const d = raw(t.cols[0]).map(dayLbl);
       const comb = at('fm trips') != null ? at('fm trips') : at('trips excl');
-      [[at('on-demand fm'), 'On-demand FM – Daily Trend', C.odfm], [at('on-demand hubs fm'), 'On-demand Hubs FM – Daily Trend', C.odhubs], [at('fixed fm'), 'Fixed FM – Daily Trend', C.fixed], [at('fulfillment'), 'Fulfillment – Daily Trend', C.ful], [comb, 'FM Trips (On-demand&Fixed)', C.comb]]
-        .forEach(([i, title, color]) => { if (i != null) out.push(chartCard(title, vchart(d, [ser(i, title, color, { type: 'line' })], { label: title }), false)); });
+      const two = el('div', 'fx-two');
+      [[at('on-demand fm'), 'On-demand FM – Daily Trend', C.odfm], [at('fixed fm'), 'Fixed FM – Daily Trend', C.fixed], [at('on-demand hubs fm'), 'On-demand Hubs FM – Daily Trend', C.odhubs], [at('fulfillment'), 'Fulfillment – Daily Trend', C.ful], [comb, 'FM Trips (On-demand&Fixed)', C.comb]]
+        .forEach(([i, title, color]) => { if (i != null) two.appendChild(chartCard(title, vchart(d, [ser(i, title, color, { type: 'line' })], { h: 300, label: title }), false)); });
+      if (two.children.length) out.push(two);
     }
     // Section 6: Daily Active Stars trend + Daily FM Hub Target vs Active Stars
     const fmTot = at('total demand') != null ? at('total demand') : at('total fm active stars');
