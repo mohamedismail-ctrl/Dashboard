@@ -202,6 +202,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   function isHeaderAt(rows, k) {
     const cs = cells(rows[k]), f = filled(cs);
     if (f.length < 2 || f.some((i) => isNum(cs[i])) || dashTitle(rows, k)) return false;
+    if (f.some((i) => /\d{1,2}-[A-Za-z]{3}/.test(cs[i]))) return false;   // a row holding dates is data, never a header
     const nx = rows[k + 1]; if (!nx) return false;
     const n = cells(nx); return filled(n).some((i) => isNum(n[i]));
   }
@@ -291,10 +292,14 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       }
       if (kind === 'text') {
         const lines = (seg.header ? [seg.header] : []).concat(rows).map((r) => cells(r)[cols[0]]).filter(Boolean);
-        return Object.assign(base, { type: 'text', head: lines[0] || '', lines: lines.slice(1) });
+        // a short plain title inside the column (e.g. "Absent Dates") starts its own box
+        const isHead = (x) => /^[A-Za-z][A-Za-z ]{0,28}$/.test(x) && x.trim().split(/\s+/).length <= 4;
+        const cards = []; let cur = null;
+        lines.forEach((x, n) => { if (n === 0 || isHead(x)) { cur = Object.assign({}, base, { type: 'text', head: x, lines: [] }); cards.push(cur); } else cur.lines.push(x); });
+        return cards.length ? cards : [Object.assign(base, { type: 'text', head: '', lines: [] })];
       }
       return Object.assign(base, { type: seg.header ? 'table' : 'plain' });
-    }).filter((t) => t.rows.length || t.header);
+    }).flat().filter((t) => t.rows.length || t.header);
   }
 
   /* ---------- rendering ---------- */
@@ -472,8 +477,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     }
     // Contractor Target vs Done vs Replacement
     if (H[0] === 'contractor' && at('target') != null && at('done') != null && at('replacement') != null && at('net') != null) {
-      const s4 = [ser(at('target'), 'Target', C.target), ser(at('done'), 'Done (w/o Replacement)', C.done), ser(at('replacement'), 'Replacement', C.repl)];
-      out.push(chartCard('Contractor Target vs Done (w/o Replacement) vs Replacement', vchart(raw(t.cols[0]), s4, { h: 280, label: 'Contractor target vs done' }), true, [['Target', C.target], ['Done (w/o Replacement)', C.done], ['Replacement', C.repl]]));
+      const s4 = [ser(at('target'), 'Target', C.target), ser(at('done'), 'Done (w/o Replacement)', C.done)];
+      out.push(chartCard('Contractor Target vs Done', vchart(raw(t.cols[0]), s4, { h: 280, label: 'Contractor target vs done' }), true, [['Target', C.target], ['Done (w/o Replacement)', C.done]]));
     }
     // Done without Replacement by Hub (selected contractor)
     if (H[0].startsWith('hub / branch') && H[1] && H[1].startsWith('done w/o')) {
@@ -510,8 +515,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   function secKey(t) {
     t = String(t || '').toLowerCase();
     if (/active stars/.test(t)) return 'active'; if (/trips/.test(t)) return 'trips'; if (/new stars/.test(t)) return 'newstars';
-    if (/working days/.test(t)) return 'days'; if (/fm target|fm hub/.test(t)) return 'fm'; if (/contractor/.test(t)) return 'contractor';
-    if (/ops control/.test(t)) return 'ops'; if (/needs/.test(t)) return 'needs'; return 'other';
+    if (/working days/.test(t)) return 'days'; if (/needs/.test(t)) return 'needs'; if (/fm target|fm hub/.test(t)) return 'fm'; if (/contractor/.test(t)) return 'contractor';
+    if (/ops control/.test(t)) return 'ops'; return 'other';
   }
   const ICONS = {
     active: '<circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -553,14 +558,27 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   }
   // New Stars: DONE / REPLACEMENT / LEFT cards jump to their details
   function linkKpis(sec) {
-    const targets = [...sec.querySelectorAll('h3, .fx-h')];
+    const findIn = (root, pre) => [...root.querySelectorAll('h3, .fx-h')].find((h) => h.textContent.trim().toLowerCase().startsWith(pre));
+    const flash = (t) => { const box = t.closest('.fx-card') || t; box.scrollIntoView({ behavior: 'smooth', block: 'start' }); box.classList.add('fx-flash'); setTimeout(() => box.classList.remove('fx-flash'), 1400); };
     sec.querySelectorAll('.fx-kpi').forEach((k) => {
       const lab = (k.querySelector('.l') || {}).textContent || ''; const key = lab.trim().toLowerCase();
-      if (!/^(done without replacement|replacement|left)$/.test(key)) return;
-      const t = targets.find((h) => h.textContent.trim().toLowerCase().startsWith(key + ' \u2014 details'));
-      if (!t) return;
-      k.classList.add('link'); k.tabIndex = 0; k.setAttribute('role', 'button'); k.title = 'Go to ' + lab.trim() + ' details';
-      const go = () => { const box = t.closest('.fx-card') || t; box.scrollIntoView({ behavior: 'smooth', block: 'start' }); box.classList.add('fx-flash'); setTimeout(() => box.classList.remove('fx-flash'), 1400); };
+      const val = ((k.querySelector('.v') || {}).textContent || '').trim();
+      const local = (pre) => { const t = findIn(sec, pre); return t ? () => flash(t) : null; };
+      let go = null, where = '';
+      if (/^(done without replacement|replacement|left)$/.test(key)) { go = local(key + ' \u2014 details'); where = lab.trim() + ' details'; }
+      else if (/^hubs joined/.test(key)) { go = local('done w/o replacement \u2014 by hub'); where = 'Done w/o Replacement \u2014 by Hub Joined'; }
+      else if (/^contractors/.test(key)) { go = local('done w/o replacement \u2014 by contractor'); where = 'Done w/o Replacement \u2014 by Contractor'; }
+      else if (key === 'missing') {
+        const n = parseFloat(val.replace(/,/g, ''));
+        const needs = document.querySelector('.fx-sec[data-k=needs]');
+        if (needs && n >= 1) {
+          const idx = [...document.querySelectorAll('.fx-sec')].indexOf(needs);
+          go = () => { showSec(idx, true); setTimeout(() => { const t = findIn(needs, 'pending needs'); if (t) flash(t); else needs.scrollIntoView({ behavior: 'smooth' }); }, 60); };
+          where = 'Needs FM Hubs \u2192 Pending needs (live)';
+        }
+      }
+      if (!go) return;
+      k.classList.add('link'); k.tabIndex = 0; k.setAttribute('role', 'button'); k.title = 'Go to ' + where;
       k.addEventListener('click', go); k.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     });
   }
