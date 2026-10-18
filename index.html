@@ -607,7 +607,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   const iconEl = (k) => { const sp = el('span', 'ic'); sp.setAttribute('aria-hidden', 'true'); sp.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[k] || ICONS.other) + '</svg>'; return sp; };
   // Bold text in Title Case (acronyms kept), and display names
   const KEEP_UP = ['FM', 'COD', 'ID', 'EGP', 'NKR', 'AXF', 'KPI'];
-  const SMALL = ['w/o', 'vs', 'of', 'and', 'per', 'by', 'to', 'in', 'the', 'on', 'or', 'excl.', 'incl.', 'with', 'without'];
+  const SMALL = ['w/o', 'vs', 'of', 'and', 'per', 'by', 'to', 'in', 'the', 'on', 'or', 'excl.', 'incl.', 'excl', 'incl', 'with', 'without'];
   function titleCase(str) {
     let first = true;
     return String(str).split(/(\s+)/).map((w) => {
