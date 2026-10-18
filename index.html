@@ -112,6 +112,14 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .fx-group{padding-top:var(--cds-gap-md);border-top:1px dashed color-mix(in srgb,var(--sec) 35%,var(--color-border-line))}
 .fx-stack{display:flex;flex-direction:column;gap:var(--cds-gap-md);min-width:0}
 .fx table.numtab{table-layout:fixed}
+.fx table.numtab th,.fx table.numtab td.n{text-align:center!important}
+.fx table.numtab th{white-space:normal;line-height:1.25}
+.fx td.dim{color:var(--color-fg-muted)}
+.fx .ach{display:inline-block;min-width:3.2rem;padding:.12rem .45rem;border-radius:999px;font-weight:700;text-align:center}
+.fx .ach-ok{background:color-mix(in srgb,var(--color-ok) 16%,transparent);color:var(--color-ok)}
+.fx .ach-mid{background:color-mix(in srgb,var(--color-warn) 16%,transparent);color:var(--color-warn)}
+.fx .ach-low{background:color-mix(in srgb,var(--color-bad) 14%,transparent);color:var(--color-bad)}
+.fx tr.tot .ach{background:none}
 .fx table.numtab th:first-child,.fx table.numtab td:first-child{width:15%}
 .fx-col{min-width:0}
 .fx-page{animation:fxIn .2s ease-out}
@@ -371,7 +379,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     const addRow = (r) => {
       const tr = el('tr'); tr.dataset.key = String(r.r); const cs = cells(r);
       if (totalRow(cs[t.cols[0]])) tr.className = 'tot';
-      t.cols.forEach((i, j) => { const td = el('td', numCol[j] ? 'n' : '', cs[i]); const sc = statusCls(cs[i]); if (sc) td.classList.add(sc); tr.appendChild(td); });
+      t.cols.forEach((i, j) => { const td = el('td', numCol[j] ? 'n' : '', cs[i]); const sc = statusCls(cs[i]); if (sc) td.classList.add(sc);
+        if (cs[i] === '\u2014' || /^not set$/i.test(cs[i])) td.classList.add('dim');
+        if (t.header && /achievement/i.test(cells(t.header)[i] || '') && /%$/.test(cs[i])) { const v = parseFloat(cs[i]); const sp = el('span', 'ach ' + (v >= 100 ? 'ach-ok' : v >= 70 ? 'ach-mid' : 'ach-low'), cs[i]); td.textContent = ''; td.appendChild(sp); }
+        tr.appendChild(td); });
       tb.appendChild(tr);
     };
     t.rows.forEach(addRow);
@@ -665,6 +676,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       G.forEach((g) => { const its = g.map((re) => out.find((it) => !used.has(it) && re.test(T(it)))); if (its.some(Boolean)) { its.forEach((x) => x && used.add(x)); boxes.push({ type: 'groupbox', items: its }); } });
       const rest = out.filter((it) => !used.has(it));
       out.length = 0; rest.forEach((x) => out.push(x)); boxes.forEach((b) => { out.push({ type: 'gap' }); out.push(b); });
+    }
+    // Needs FM Hubs: the status-count summary always sits at the very end of the section
+    if (s.dataset.k === 'needs') {
+      const last = out.filter((it) => it.type === 'table' && /^needs summary/i.test(it.title || ''));
+      if (last.length) { const rest = out.filter((it) => last.indexOf(it) < 0); out.length = 0; rest.forEach((x) => out.push(x)); out.push({ type: 'gap' }); last.forEach((x) => out.push(x)); }
     }
     let grid = null;
     const ensureGrid = () => { if (!grid) { grid = el('div', 'fx-grid'); s.appendChild(grid); } return grid; };
