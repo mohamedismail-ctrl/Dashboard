@@ -396,6 +396,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       if (totalRow(cs[t.cols[0]])) tr.className = 'tot';
       t.cols.forEach((i, j) => { const td = el('td', numCol[j] ? 'n' : '', cs[i]); const sc = statusCls(cs[i]); if (sc) td.classList.add(sc);
         if (cs[i] === '\u2014' || /^not set$/i.test(cs[i])) td.classList.add('dim');
+        { const hh = t.header ? (cells(t.header)[i] || '').toLowerCase() : ''; if (/^(not resolved|lost on star)$/.test(hh)) { td.classList.remove('ok', 'bad'); if (/^yes$/i.test(cs[i])) td.classList.add('bad'); } }
         if (t.header && /achievement/i.test(cells(t.header)[i] || '') && /%$/.test(cs[i])) { const v = parseFloat(cs[i]); const sp = el('span', 'ach ' + (v >= 100 ? 'ach-ok' : v >= 70 ? 'ach-mid' : 'ach-low'), cs[i]); td.textContent = ''; td.appendChild(sp); }
         tr.appendChild(td); });
       tb.appendChild(tr);
